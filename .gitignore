@@ -1,0 +1,31 @@
+# Environments
+.env
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Databases & local stores
+chinook.db
+*.sqlite
+*.sqlite3
+*.db
+
+# macOS
+.DS_Store
+
+# IDEs
+.vscode/
+.idea/
