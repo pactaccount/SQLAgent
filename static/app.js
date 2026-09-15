@@ -74,7 +74,11 @@ const initSplitters = () => {
             if (s.next) nextNode = document.getElementById(s.next);
             
             if (s.type === 'vertical') {
-                startWidth = prevNode.getBoundingClientRect().width;
+                if (s.id === 'split-3' && s.next) {
+                    startWidth = nextNode.getBoundingClientRect().width;
+                } else {
+                    startWidth = prevNode.getBoundingClientRect().width;
+                }
             } else {
                 startHeight = prevNode.getBoundingClientRect().height;
             }
@@ -89,12 +93,21 @@ const initSplitters = () => {
         
         if (currentSplitter.type === 'vertical') {
             const dx = e.clientX - startX;
-            const newWidth = startWidth + dx;
-            prevNode.style.width = `${newWidth}px`;
-            prevNode.style.minWidth = `${newWidth}px`;
+            if (currentSplitter.id === 'split-3') {
+                let newWidth = startWidth - dx; // Moving left increases right sidebar width
+                newWidth = Math.max(200, Math.min(newWidth, window.innerWidth - 300));
+                nextNode.style.width = `${newWidth}px`;
+                nextNode.style.minWidth = `${newWidth}px`;
+            } else {
+                let newWidth = startWidth + dx;
+                newWidth = Math.max(150, Math.min(newWidth, window.innerWidth - 300));
+                prevNode.style.width = `${newWidth}px`;
+                prevNode.style.minWidth = `${newWidth}px`;
+            }
         } else {
             const dy = e.clientY - startY;
-            const newHeight = startHeight + dy;
+            let newHeight = startHeight + dy;
+            newHeight = Math.max(100, Math.min(newHeight, window.innerHeight - 150));
             prevNode.style.height = `${newHeight}px`;
             prevNode.style.flex = `0 0 ${newHeight}px`;
         }

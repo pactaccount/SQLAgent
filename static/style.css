@@ -157,9 +157,8 @@ body {
     min-width: 200px;
     display: flex;
     flex-direction: column;
-    border-right: 1px solid var(--glass-border);
     background: var(--ide-sidebar);
-    transition: width 0.2s, min-width 0.2s, opacity 0.2s;
+    transition: opacity 0.2s;
 }
 
 /* Splitters */
@@ -216,7 +215,7 @@ body {
     flex-direction: column;
     border-left: 1px solid var(--glass-border);
     background: var(--ide-sidebar);
-    transition: width 0.2s, min-width 0.2s, opacity 0.2s;
+    transition: opacity 0.2s;
 }
 
 /* Chat Container */
