@@ -2,7 +2,7 @@ import os
 from sqlalchemy import create_engine, inspect
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct, Filter, FieldCondition, MatchValue
-from sentence_transformers import SentenceTransformer
+from langchain_huggingface import HuggingFaceEndpointEmbeddings
 import uuid
 
 def extract_schema_metadata(db_uri: str):
@@ -47,8 +47,14 @@ class VectorStore:
             self.client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
         else:
             self.client = QdrantClient(":memory:")
-            
-        self.encoder = SentenceTransformer('all-MiniLM-L6-v2')
+        
+        # Use Hugging Face API to prevent OOM errors on limited RAM servers
+        hf_token = os.getenv("HF_TOKEN")
+        self.encoder = HuggingFaceEndpointEmbeddings(
+            model="sentence-transformers/all-MiniLM-L6-v2",
+            huggingfacehub_api_token=hf_token
+        ) if hf_token else None
+        
         self.vector_size = 384  # Dimension for all-MiniLM-L6-v2
         
         self._init_collections()
@@ -90,9 +96,12 @@ class VectorStore:
         if not schema_docs:
             return
             
+        if not schema_docs or not self.encoder:
+            return
+            
         points = []
         for doc in schema_docs:
-            vector = self.encoder.encode(doc["document"]).tolist()
+            vector = self.encoder.embed_query(doc["document"])
             point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{tenant_id}_{doc['table_name']}"))
             payload = {
                 "type": "schema",
@@ -110,7 +119,9 @@ class VectorStore:
 
     def search_schema(self, query: str, tenant_id: str, k: int = 5):
         """Searches for top k relevant table schemas for a given query, filtered by tenant."""
-        query_vector = self.encoder.encode(query).tolist()
+        if not self.encoder:
+            return []
+        query_vector = self.encoder.embed_query(query)
         
         try:
             results = self.client.search(
@@ -125,9 +136,11 @@ class VectorStore:
         except Exception:
             return []
 
-    def semantic_cache_check(self, query: str, tenant_id: str, threshold: float = 0.85):
+    def semantic_cache_check(self, query: str, tenant_id: str, threshold: float = 0.95):
         """Checks if a highly similar query exists in the cache for this tenant."""
-        query_vector = self.encoder.encode(query).tolist()
+        if not self.encoder:
+            return None
+        query_vector = self.encoder.embed_query(query)
         
         try:
             results = self.client.search(
@@ -153,7 +166,9 @@ class VectorStore:
 
     def semantic_cache_set(self, query: str, answer: str, sql: str, tenant_id: str):
         """Saves a query and its successful response to the cache for a tenant."""
-        vector = self.encoder.encode(query).tolist()
+        if not self.encoder:
+            return
+        vector = self.encoder.embed_query(query)
         point_id = str(uuid.uuid4())
         payload = {
             "sql": sql,

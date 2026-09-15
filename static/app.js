@@ -574,7 +574,13 @@ document.getElementById('chat-form').addEventListener('submit', async (e) => {
             const activeCode = getActiveCode();
             if (activeCode) {
                 activeCode.innerText = data.sql_query;
-                hljs.highlightElement(activeCode);
+                if (typeof hljs !== 'undefined') {
+                    try {
+                        hljs.highlightElement(activeCode);
+                    } catch(e) {
+                        console.log("Highlighting error (ignored):", e);
+                    }
+                }
             }
             renderTable(data.execution_result);
         } else {

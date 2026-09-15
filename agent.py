@@ -10,7 +10,7 @@ from litellm import completion
 from tools import get_schema_for_query, execute_sql
 from vector_store import vector_store
 
-MODEL = "gemini/gemini-3.6-flash"
+MODEL = "gemini/gemini-2.5-flash"
 
 class AgentState(TypedDict):
     user_query: str
