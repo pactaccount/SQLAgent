@@ -98,11 +98,13 @@ const initSplitters = () => {
                 newWidth = Math.max(200, Math.min(newWidth, window.innerWidth - 300));
                 nextNode.style.width = `${newWidth}px`;
                 nextNode.style.minWidth = `${newWidth}px`;
+                nextNode.style.flex = `0 0 ${newWidth}px`;
             } else {
                 let newWidth = startWidth + dx;
                 newWidth = Math.max(150, Math.min(newWidth, window.innerWidth - 300));
                 prevNode.style.width = `${newWidth}px`;
                 prevNode.style.minWidth = `${newWidth}px`;
+                prevNode.style.flex = `0 0 ${newWidth}px`;
             }
         } else {
             const dy = e.clientY - startY;
