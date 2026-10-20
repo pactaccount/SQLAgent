@@ -12,6 +12,8 @@ the test suite deterministic.
 
 import os
 import re
+import json
+from types import SimpleNamespace
 
 MOCK_ENABLED = os.getenv("MOCK_LLM", "").lower() in ("1", "true", "yes", "on")
 
@@ -178,3 +180,53 @@ def mock_steps(sql: str, tables: list) -> list:
         "Count the rows that match",
         "Return the count",
     ]
+
+
+def format_mock_summary(user_prompt: str) -> str:
+    """Render the mock's insight, explanation and follow-ups in the format
+    the real prompt asks the model for."""
+    rows = []
+    match = re.search(r"Data \(first 50 rows\):\n(\[.*?\])\n", user_prompt, re.DOTALL)
+    if match:
+        try:
+            rows = json.loads(match.group(1))
+        except Exception:
+            rows = []
+
+    insight, explanation, follow_ups = mock_summary("", [], rows)
+    return (
+        f"INSIGHT: {insight}\n"
+        f"EXPLANATION: {explanation}\n"
+        f"FOLLOW_UPS: {' | '.join(follow_ups)}"
+    )
+
+
+def mock_completion(messages):
+    """
+    A stand-in for litellm's response object.
+
+    The agent asks for three different things - SQL, prose, and a labelled
+    summary - so the mock inspects the system prompt to work out which one
+    is being asked for.
+    """
+    system = ""
+    user = ""
+    for message in messages:
+        if message.get("role") == "system":
+            system += message.get("content", "")
+        else:
+            user += message.get("content", "")
+
+    if "Return ONLY the raw SQL query string" in system:
+        content = mock_sql(user)
+    elif "Reply in this exact format" in system:
+        content = format_mock_summary(user)
+    elif "synthesize the raw database results" in system:
+        content = mock_answer(user)
+    else:
+        content = mock_answer(user)
+
+    return SimpleNamespace(
+        choices=[SimpleNamespace(message=SimpleNamespace(content=content))]
+    )
+

@@ -733,15 +733,6 @@ node tests/ui_smoke.js               # the frontend
 the vector store both fall back to local implementations, and the model falls
 back to the mock when `MOCK_LLM=1` is set. See section 17.
 
-**Checking the interface by hand?** See [QA_CHECKLIST.md](QA_CHECKLIST.md) — a
-walkthrough for the things the automated tests cannot check, which is
-appearance: layout, contrast, spacing, and the visual polish.
-
-**The research behind the interface design** — what was adopted from
-Databricks Genie, Snowflake, BigQuery and the human-AI interaction
-literature, and what was deliberately left out — is recorded in
-[UI_GUIDE.md](UI_GUIDE.md).
-
 ---
 
 ## 17. Troubleshooting
