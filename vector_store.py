@@ -1,8 +1,9 @@
 import os
+import re
 from sqlalchemy import create_engine, inspect
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct, Filter, FieldCondition, MatchValue
-from langchain_huggingface import HuggingFaceEndpointEmbeddings
+from embeddings import build_embeddings, VECTOR_SIZE
 import uuid
 
 def extract_schema_metadata(db_uri: str):
@@ -41,22 +42,31 @@ class VectorStore:
     def __init__(self):
         qdrant_url = os.getenv("QDRANT_URL")
         qdrant_api_key = os.getenv("QDRANT_API_KEY")
-        
+
         # Use cloud if credentials exist, otherwise fallback to local memory
+        self.client = None
+        self.using_cloud = False
         if qdrant_url and qdrant_api_key:
-            self.client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
-        else:
+            try:
+                self.client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+                # Force a round-trip so a bad URL or key is discovered here
+                # rather than on the first user request.
+                self.client.get_collections()
+                self.using_cloud = True
+            except Exception as exc:
+                print(f"[VectorStore] Qdrant Cloud unavailable ({exc}); using in-memory store.")
+                self.client = QdrantClient(":memory:")
+
+        if self.client is None:
             self.client = QdrantClient(":memory:")
-        
-        # Use Hugging Face API to prevent OOM errors on limited RAM servers
+
+        # Use the hosted Hugging Face encoder when it is available, and fall
+        # back to a local one when it is not. The app must work either way.
         hf_token = os.getenv("HF_TOKEN")
-        self.encoder = HuggingFaceEndpointEmbeddings(
-            model="sentence-transformers/all-MiniLM-L6-v2",
-            huggingfacehub_api_token=hf_token
-        ) if hf_token else None
-        
-        self.vector_size = 384  # Dimension for all-MiniLM-L6-v2
-        
+        self.encoder = build_embeddings(hf_token)
+
+        self.vector_size = VECTOR_SIZE  # Dimension for all-MiniLM-L6-v2
+
         self._init_collections()
 
     def _init_collections(self):
@@ -64,17 +74,16 @@ class VectorStore:
             collections = [c.name for c in self.client.get_collections().collections]
         except Exception:
             collections = []
-            
-        if "schema_metadata" not in collections:
-            self.client.create_collection(
-                collection_name="schema_metadata",
-                vectors_config=VectorParams(size=self.vector_size, distance=Distance.COSINE)
-            )
-        if "semantic_cache" not in collections:
-            self.client.create_collection(
-                collection_name="semantic_cache",
-                vectors_config=VectorParams(size=self.vector_size, distance=Distance.COSINE)
-            )
+
+        for name in ("schema_metadata", "semantic_cache"):
+            if name not in collections:
+                try:
+                    self.client.create_collection(
+                        collection_name=name,
+                        vectors_config=VectorParams(size=self.vector_size, distance=Distance.COSINE)
+                    )
+                except Exception as exc:
+                    print(f"[VectorStore] Could not create collection '{name}': {exc}")
 
     def init_schema_rag(self, db_uri: str, tenant_id: str):
         """Extracts schema from db and loads it into Qdrant for a specific tenant."""
@@ -92,13 +101,10 @@ class VectorStore:
             pass
             
         schema_docs = extract_schema_metadata(db_uri)
-        
+
         if not schema_docs:
             return
-            
-        if not schema_docs or not self.encoder:
-            return
-            
+
         points = []
         for doc in schema_docs:
             vector = self.encoder.embed_query(doc["document"])
@@ -110,48 +116,102 @@ class VectorStore:
                 "document": doc["document"]
             }
             points.append(PointStruct(id=point_id, vector=vector, payload=payload))
-            
-        self.client.upsert(
-            collection_name="schema_metadata",
-            points=points
+
+        try:
+            self.client.upsert(
+                collection_name="schema_metadata",
+                points=points
+            )
+            print(f"Loaded {len(points)} table schemas into Qdrant for {tenant_id}.")
+        except Exception as exc:
+            print(f"[VectorStore] Could not store schema for {tenant_id}: {exc}")
+
+    def _query(self, collection: str, vector: list, limit: int, tenant_id: str):
+        """
+        Run a filtered vector search.
+
+        Qdrant renamed `search` to `query_points` in its 1.10+ client, and
+        removed the old name. This calls whichever the installed client
+        provides, so the semantic cache and schema retrieval work on both
+        old and new clients.
+        """
+        query_filter = Filter(
+            must=[FieldCondition(key="tenant_id", match=MatchValue(value=tenant_id))]
         )
-        print(f"Loaded {len(points)} table schemas into Qdrant for {tenant_id}.")
+
+        if hasattr(self.client, "query_points"):
+            response = self.client.query_points(
+                collection_name=collection,
+                query=vector,
+                limit=limit,
+                query_filter=query_filter,
+            )
+            return list(response.points)
+
+        # Older clients: search() returns the points directly.
+        return list(self.client.search(
+            collection_name=collection,
+            query_vector=vector,
+            limit=limit,
+            query_filter=query_filter,
+        ))
 
     def search_schema(self, query: str, tenant_id: str, k: int = 5):
         """Searches for top k relevant table schemas for a given query, filtered by tenant."""
-        if not self.encoder:
-            return []
-        query_vector = self.encoder.embed_query(query)
-        
         try:
-            results = self.client.search(
-                collection_name="schema_metadata",
-                query_vector=query_vector,
-                limit=k,
-                query_filter=Filter(
-                    must=[FieldCondition(key="tenant_id", match=MatchValue(value=tenant_id))]
-                )
+            query_vector = self.encoder.embed_query(query)
+
+            results = self._query(
+                "schema_metadata", query_vector, k, tenant_id
             )
-            return [hit.payload["document"] for hit in results]
+            documents = [hit.payload["document"] for hit in results]
+            if documents:
+                return documents
+        except Exception:
+            pass
+
+        # The vector search failed or found nothing. Fall back to a keyword
+        # match over the same collection, so a working index is still used.
+        return self._keyword_search_schema(query, tenant_id, k)
+
+    def _keyword_search_schema(self, query: str, tenant_id: str, k: int = 5):
+        """Rank the tenant's tables by how many query words they contain."""
+        try:
+            points, _ = self.client.scroll(
+                collection_name="schema_metadata",
+                scroll_filter=Filter(
+                    must=[FieldCondition(key="tenant_id", match=MatchValue(value=tenant_id))]
+                ),
+                limit=200,
+                with_payload=True,
+            )
         except Exception:
             return []
 
+        words = {w for w in re.findall(r"[a-z0-9]+", (query or "").lower()) if len(w) > 2}
+        if not words:
+            return []
+
+        scored = []
+        for point in points:
+            payload = point.payload or {}
+            document = (payload.get("document") or "").lower()
+            table = (payload.get("table") or "").lower()
+            score = sum(1 for word in words if word in document or word in table)
+            if score:
+                scored.append((score, payload.get("document", "")))
+
+        # Most relevant first; ties keep the original order.
+        scored.sort(key=lambda pair: -pair[0])
+        return [document for _, document in scored[:k]]
+
     def semantic_cache_check(self, query: str, tenant_id: str, threshold: float = 0.95):
         """Checks if a highly similar query exists in the cache for this tenant."""
-        if not self.encoder:
-            return None
-        query_vector = self.encoder.embed_query(query)
-        
         try:
-            results = self.client.search(
-                collection_name="semantic_cache",
-                query_vector=query_vector,
-                limit=1,
-                query_filter=Filter(
-                    must=[FieldCondition(key="tenant_id", match=MatchValue(value=tenant_id))]
-                )
-            )
-            
+            query_vector = self.encoder.embed_query(query)
+
+            results = self._query("semantic_cache", query_vector, 1, tenant_id)
+
             # Qdrant Cosine distance returns similarity score where 1.0 is exact match.
             if results and results[0].score >= threshold:
                 payload = results[0].payload
@@ -159,28 +219,29 @@ class VectorStore:
                     "answer": payload.get("answer", ""),
                     "sql": payload.get("sql", "")
                 }
-        except Exception:
-            pass
-            
+        except Exception as exc:
+            print(f"[VectorStore] Semantic cache lookup failed: {exc}")
+
         return None
 
     def semantic_cache_set(self, query: str, answer: str, sql: str, tenant_id: str):
         """Saves a query and its successful response to the cache for a tenant."""
-        if not self.encoder:
-            return
-        vector = self.encoder.embed_query(query)
-        point_id = str(uuid.uuid4())
-        payload = {
-            "sql": sql,
-            "query": query,
-            "answer": answer,
-            "tenant_id": tenant_id
-        }
-        
-        self.client.upsert(
-            collection_name="semantic_cache",
-            points=[PointStruct(id=point_id, vector=vector, payload=payload)]
-        )
+        try:
+            vector = self.encoder.embed_query(query)
+            point_id = str(uuid.uuid4())
+            payload = {
+                "sql": sql,
+                "query": query,
+                "answer": answer,
+                "tenant_id": tenant_id
+            }
+
+            self.client.upsert(
+                collection_name="semantic_cache",
+                points=[PointStruct(id=point_id, vector=vector, payload=payload)]
+            )
+        except Exception as exc:
+            print(f"[VectorStore] Could not write to the semantic cache: {exc}")
 
 # Global instance
 vector_store = VectorStore()

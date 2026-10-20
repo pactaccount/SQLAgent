@@ -29,3 +29,10 @@ chinook.db
 # IDEs
 .vscode/
 .idea/
+
+# Local agent/editor tooling
+.claude/
+.serena/
+
+# Eval harness output
+usecase_results.json

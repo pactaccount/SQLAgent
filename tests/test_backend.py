@@ -85,10 +85,83 @@ def test_run_agent_flow(db_type, db_uri, tenant_id):
 
 @pytest.mark.parametrize("db_type, db_uri, tenant_id", TEST_DATABASES)
 def test_agent_hitl_flow(db_type, db_uri, tenant_id):
-    """Test the agent correctly flags destructive requests dynamically."""
+    """
+    Test the agent correctly flags destructive requests dynamically.
+
+    This one runs against the deterministic mock so the test does not depend
+    on the model choosing a particular destructive phrasing.
+    """
+    import mock_llm
+
     table = get_test_table(db_uri)
     query = f"Drop the table {table}"
-    state = run_agent(query, tenant_id, db_uri)
-    
+
+    original = mock_llm.mock_sql
+    mock_llm.mock_sql = lambda q: f"DROP TABLE {table}"
+    try:
+        state = run_agent(query, tenant_id, db_uri)
+    finally:
+        mock_llm.mock_sql = original
+
     assert state["requires_approval"] is True
     assert "DROP" in state["sql_query"].upper()
+
+
+@pytest.mark.parametrize("db_type, db_uri, tenant_id", TEST_DATABASES)
+def test_preview_sql_does_not_change_anything(db_type, db_uri, tenant_id):
+    """The impact preview is read-only, and it reports what would change."""
+    table = get_test_table(db_uri)
+
+    res = client.post("/preview_sql", json={
+        "sql": f"DELETE FROM {table} WHERE 1 = 0",
+        "db_uri": db_uri,
+    })
+    assert res.status_code == 200
+
+    payload = res.json()
+    assert payload["success"] is True
+    assert payload["analysis"]["is_mutating"] is True
+    assert payload["analysis"]["type"] == "DELETE"
+    assert payload["preview"]["estimated_rows"] == 0
+
+
+@pytest.mark.parametrize("db_type, db_uri, tenant_id", TEST_DATABASES)
+def test_starter_questions_endpoint(db_type, db_uri, tenant_id):
+    """The starter questions come from the database's own schema."""
+    res = client.post("/starter_questions", json={"tenant_id": tenant_id, "db_uri": db_uri})
+    assert res.status_code == 200
+
+    questions = res.json()["questions"]
+    assert len(questions) > 0
+    assert all(q["question"].endswith("?") for q in questions)
+
+
+@pytest.mark.parametrize("db_type, db_uri, tenant_id", TEST_DATABASES)
+def test_run_sql_refuses_a_mutation(db_type, db_uri, tenant_id):
+    """The manual SQL runner only runs reads."""
+    table = get_test_table(db_uri)
+
+    res = client.post("/run_sql", json={
+        "sql": f"DELETE FROM {table}",
+        "db_uri": db_uri,
+    })
+    assert res.status_code == 400
+    assert "changes data" in res.json()["detail"].lower()
+
+
+@pytest.mark.parametrize("db_type, db_uri, tenant_id", TEST_DATABASES)
+def test_run_sql_returns_rows(db_type, db_uri, tenant_id):
+    """A read written by hand comes back with columns and rows."""
+    table = get_test_table(db_uri)
+
+    res = client.post("/run_sql", json={
+        "sql": f'SELECT * FROM "{table}" LIMIT 3',
+        "db_uri": db_uri,
+        "limit": 3,
+    })
+    assert res.status_code == 200
+
+    payload = res.json()
+    assert payload["success"] is True
+    assert len(payload["result"]) <= 3
+    assert payload["columns"]
