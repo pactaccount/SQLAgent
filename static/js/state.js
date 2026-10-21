@@ -152,6 +152,7 @@ class Store {
     }
 
     setActiveSession(id) {
+        if (this.state.activeSessionId === id) return;
         this.state.activeSessionId = id;
         this.emit(['activeSessionId']);
     }
@@ -163,15 +164,48 @@ class Store {
         this.emit(['sessions']);
     }
 
+    /**
+     * Append a message to a session's transcript.
+     *
+     * The transcript lives on the session, not on the chat panel, so
+     * switching tabs restores the conversation instead of wiping it.
+     *
+     * This deliberately does not emit: a new message does not change the
+     * tab bar, and re-rendering it on every keystroke of the agent's
+     * answer would make the bar flicker and swallow clicks.
+     */
+    addMessage(sessionId, message) {
+        this.state.sessions = this.state.sessions.map((session) =>
+            session.id === sessionId
+                ? { ...session, messages: [...session.messages, message] }
+                : session,
+        );
+    }
+
+    /** Clear every session's transcript, for when the database changes. */
+    clearMessages() {
+        this.state.sessions = this.state.sessions.map((session) => ({
+            ...session,
+            messages: [],
+        }));
+    }
+
     removeSession(id) {
         if (this.state.sessions.length <= 1) return false;
+
+        const index = this.state.sessions.findIndex((s) => s.id === id);
+        if (index === -1) return false;
 
         const remaining = this.state.sessions.filter((s) => s.id !== id);
         this.state.sessions = remaining;
 
+        // If the closed tab was active, move to a neighbour rather than
+        // jumping to the far end of the list.
         if (this.state.activeSessionId === id) {
-            this.state.activeSessionId = remaining[remaining.length - 1].id;
+            const next = remaining[Math.min(index, remaining.length - 1)];
+            this.state.activeSessionId = next.id;
         }
+
         this.emit(['sessions', 'activeSessionId']);
         return true;
     }

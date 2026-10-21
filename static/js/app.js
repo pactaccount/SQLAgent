@@ -100,37 +100,49 @@ function renderTabs() {
     const sessions = store.state.sessions;
     const activeId = store.state.activeSessionId;
 
-    const tabs = sessions.map((session) =>
-        el(
-            'button',
+    const tabs = sessions.map((session) => {
+        // The tab is a container, not a button. Putting the close control
+        // inside a <button> nests interactive elements, which is invalid
+        // HTML and stops the close button working in some browsers.
+        const tab = el(
+            'div',
             {
                 class: `tab${session.id === activeId ? ' is-active' : ''}`,
-                type: 'button',
-                'aria-current': session.id === activeId ? 'page' : null,
-                onclick: () => {
-                    store.setActiveSession(session.id);
+                role: 'tab',
+                tabindex: '0',
+                'aria-selected': String(session.id === activeId),
+                onclick: () => store.setActiveSession(session.id),
+                onkeydown: (event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        store.setActiveSession(session.id);
+                    }
                 },
             },
-            el('span', { text: session.title }),
-            sessions.length > 1
-                ? el(
-                      'span',
-                      {
-                          class: 'tab__close',
-                          role: 'button',
-                          tabindex: '0',
-                          title: 'Close this query',
-                          'aria-label': `Close ${session.title}`,
-                          onclick: (event) => {
-                              event.stopPropagation();
-                              store.removeSession(session.id);
-                          },
-                      },
-                      '×',
-                  )
-                : null,
-        ),
-    );
+            el('span', { class: 'tab__label', text: session.title }),
+        );
+
+        // The close control is always present, even for the only tab, so
+        // that its position does not shift when a second tab is opened.
+        tab.append(
+            el(
+                'button',
+                {
+                    class: 'tab__close',
+                    type: 'button',
+                    title: `Close ${session.title}`,
+                    'aria-label': `Close ${session.title}`,
+                    onclick: (event) => {
+                        event.stopPropagation();
+                        closeSession(session.id);
+                    },
+                },
+                '×',
+            ),
+        );
+
+        return tab;
+    });
 
     tabs.push(
         el(
@@ -141,10 +153,7 @@ function renderTabs() {
                 title: 'Start a new query',
                 'aria-label': 'Start a new query',
                 onclick: () => {
-                    const session = store.createSession();
-                    renderSession();
-                    chat.clear();
-                    chat.setPlaceholder('Ask a question about your data…');
+                    store.createSession();
                 },
             },
             icon('plus', 14),
@@ -152,6 +161,21 @@ function renderTabs() {
     );
 
     dom.tabBar.replaceChildren(...tabs);
+}
+
+/**
+ * Close a query tab.
+ *
+ * The last remaining tab is never closed - there has to be somewhere to
+ * type the next question - but the button is still shown so the control
+ * does not appear and disappear as tabs come and go.
+ */
+function closeSession(id) {
+    if (store.state.sessions.length <= 1) {
+        toast('This is your only query tab. Use the + button to open another.', 'info');
+        return;
+    }
+    store.removeSession(id);
 }
 
 function renderResults(session) {
@@ -262,6 +286,30 @@ async function ask(question) {
     } finally {
         store.setBusy(false);
     }
+}
+
+/**
+ * Restore the active session's conversation into the chat panel.
+ *
+ * Each query tab keeps its own transcript, so switching tabs shows what was
+ * asked in that tab rather than an empty thread.
+ */
+function restoreChat() {
+    const session = store.activeSession;
+    if (!session) return;
+
+    chat.renderTranscript(session.messages, {
+        onRunSql: (sql) => runEditedSql(session, sql),
+        onFollowUp: (question) => ask(question),
+        onReask: (original) => ask(original),
+        onApprove: (approveBtn, rejectBtn) => approveStatement(session, approveBtn, rejectBtn),
+        onReject: () => {
+            toast('Nothing was changed. Your data is untouched.', 'info');
+        },
+        onFeedback: (kind) => {
+            console.info('Answer feedback:', kind);
+        },
+    });
 }
 
 /**
@@ -517,6 +565,14 @@ function boot() {
     });
     chat.onSubmit = (question) => ask(question);
 
+    // Every message is filed against the session that is active when it is
+    // added, so each tab keeps its own conversation.
+    chat.onRecord = (entry) => {
+        const session = store.activeSession;
+        if (!session) return;
+        store.addMessage(session.id, entry);
+    };
+
     // --- Grid ---
     grid = new DataGrid(dom.dataBody);
 
@@ -531,7 +587,10 @@ function boot() {
             store.setConnection(info);
             updateConnectionUI();
 
-            const session = store.activeSession;
+            // A different database means the old answers no longer describe
+            // it, so every tab starts fresh rather than showing results
+            // that came from somewhere else.
+            store.clearMessages();
             chat.clear();
             chat.addSystemMessage(
                 `Connected to ${info.dbType}. Its structure has been indexed, so the agent knows what is in there.`,
@@ -590,6 +649,19 @@ function boot() {
     store.subscribe((_, changed) => {
         if (changed.includes('panels')) applyPanels();
         if (changed.includes('connection')) updateConnectionUI();
+
+        // The tab bar and the active session's panels both depend on the
+        // session list. Without this, opening or closing a tab leaves the
+        // bar showing whatever it last drew.
+        if (changed.includes('sessions') || changed.includes('activeSessionId')) {
+            renderTabs();
+        }
+
+        // Switching tabs restores that tab's conversation, SQL and results.
+        if (changed.includes('activeSessionId')) {
+            renderSession();
+            restoreChat();
+        }
     });
     applyPanels();
 
@@ -621,6 +693,9 @@ function boot() {
     initSplitters();
 
     // --- First session ---
+    // createSession emits, which runs renderTabs/renderSession/restoreChat.
+    // The transcript is empty at this point, so restoreChat just leaves the
+    // panel clear for the welcome message below.
     store.createSession();
     renderSession();
     updateConnectionUI();

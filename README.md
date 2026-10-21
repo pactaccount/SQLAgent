@@ -7,28 +7,33 @@ your explicit approval.
 Built with FastAPI, LangGraph, Google Gemini, Qdrant and vanilla ES modules.
 No build step: `pip install -r requirements.txt`, run the server, open the page.
 
+> **New here?** Start with **[GETTING_STARTED.md](GETTING_STARTED.md)** — a
+> ten-minute walkthrough from install to your first verified answer. This
+> README is the full reference.
+
 ---
 
 ## Contents
 
-1. [What it does](#1-what-it-does)
-2. [Quick start](#2-quick-start)
-3. [The interface, panel by panel](#3-the-interface-panel-by-panel)
-4. [A walkthrough for a first-time user](#4-a-walkthrough-for-a-first-time-user)
-5. [Connecting a database](#5-connecting-a-database)
-6. [Asking questions that work](#6-asking-questions-that-work)
-7. [Reading the results](#7-reading-the-results)
-8. [The SQL panel](#8-the-sql-panel)
-9. [Changes to your data: the approval flow](#9-changes-to-your-data-the-approval-flow)
-10. [The schema explorer](#10-the-schema-explorer)
-11. [Keyboard shortcuts](#11-keyboard-shortcuts)
-12. [Accessibility](#12-accessibility)
-13. [How the agent works](#13-how-the-agent-works)
-14. [API reference](#14-api-reference)
-15. [Architecture](#15-architecture)
-16. [Testing](#16-testing)
-17. [Troubleshooting](#17-troubleshooting)
-18. [Deployment](#18-deployment)
+1. [What it does](#what-it-does)
+2. [Quick start](#quick-start)
+3. [The interface, panel by panel](#the-interface-panel-by-panel)
+4. [Query tabs](#query-tabs)
+5. [A walkthrough for a first-time user](#a-walkthrough-for-a-first-time-user)
+6. [Connecting a database](#connecting-a-database)
+7. [Asking questions that work](#asking-questions-that-work)
+8. [Reading the results](#reading-the-results)
+9. [The SQL panel](#the-sql-panel)
+10. [Changes to your data: the approval flow](#changes-to-your-data-the-approval-flow)
+11. [The schema explorer](#the-schema-explorer)
+12. [Keyboard shortcuts](#keyboard-shortcuts)
+13. [Accessibility](#accessibility)
+14. [How the agent works](#how-the-agent-works)
+15. [API reference](#api-reference)
+16. [Architecture](#architecture)
+17. [Testing](#testing)
+18. [Troubleshooting](#troubleshooting)
+19. [Deployment](#deployment)
 
 ---
 
@@ -196,7 +201,30 @@ long the last question took, and the operating mode on the right.
 
 ---
 
-## 4. A walkthrough for a first-time user
+## 4. Query tabs
+
+Each tab is an **independent query session**, keeping its own conversation,
+SQL and results.
+
+| Action | How |
+|---|---|
+| Open a new tab | Click **+** at the right of the tab bar |
+| Switch tabs | Click the tab — the conversation comes back exactly as you left it |
+| Close a tab | Click the **×** on the tab |
+| Identify a tab | It takes the name of your first question |
+
+Tabs live in the browser tab you have open — closing the browser loses them,
+so export the conversation first if you want to keep it. The last remaining
+tab cannot be closed, since there has to be somewhere to type the next
+question.
+
+**One question per tab.** If you are chasing a second question, open a new
+tab rather than asking a follow-up in the same one. You keep both lines of
+enquiry side by side, which is the whole point of having tabs.
+
+---
+
+## 5. A walkthrough for a first-time user
 
 You have never used this tool. Here is the shortest path to a useful answer.
 
@@ -238,7 +266,7 @@ That is the whole loop. Everything else in the app is optional.
 
 ---
 
-## 5. Connecting a database
+## 6. Connecting a database
 
 Open the wizard with **Connect a database**, the connection chip, or
 `Ctrl/Cmd + ,`.
@@ -285,7 +313,7 @@ details stay in the form, so you can correct one field and try again.
 
 ---
 
-## 6. Asking questions that work
+## 7. Asking questions that work
 
 The agent is good at questions that name **what you want** and let the
 database supply the rest. These work well:
@@ -313,7 +341,7 @@ rephrase.
 
 ---
 
-## 7. Reading the results
+## 8. Reading the results
 
 ### The chart
 
@@ -346,7 +374,7 @@ If the server truncated a very large result, the footer says so.
 
 ---
 
-## 8. The SQL panel
+## 9. The SQL panel
 
 The centre panel's top half shows the SQL the agent ran. It is always
 available and never in the way.
@@ -368,7 +396,7 @@ Inside the disclosure you will also find:
   not read SQL.
 
 The manual runner only accepts reads. A statement that would change data is
-refused — for those, use the approval flow in section 9.
+refused — for those, use the approval flow in section 10.
 
 ### Checking the query, step by step
 
@@ -408,7 +436,7 @@ observable evidence is honest and tells you what to do about it.
 
 ---
 
-## 9. Changes to your data: the approval flow
+## 10. Changes to your data: the approval flow
 
 The agent **cannot** change your data on its own. Any statement that would
 write, update or delete is stopped before it runs.
@@ -457,7 +485,7 @@ stray Enter keypress cannot destroy data.
 
 ---
 
-## 10. The schema explorer
+## 11. The schema explorer
 
 The left panel lists every table in the connected database.
 
@@ -470,7 +498,7 @@ Each row shows the column count, so you can spot the big tables at a glance.
 
 ---
 
-## 11. Keyboard shortcuts
+## 12. Keyboard shortcuts
 
 | Shortcut | Action |
 |---|---|
@@ -484,7 +512,7 @@ Each row shows the column count, so you can spot the big tables at a glance.
 
 ---
 
-## 12. Accessibility
+## 13. Accessibility
 
 The interface is built to WCAG 2.2 AA:
 
@@ -505,7 +533,7 @@ The interface is built to WCAG 2.2 AA:
 
 ---
 
-## 13. How the agent works
+## 14. How the agent works
 
 ```
                     ┌──────────────────────┐
@@ -552,7 +580,7 @@ approval with a preview of their impact.
 
 ---
 
-## 14. API reference
+## 15. API reference
 
 All endpoints are JSON over HTTP.
 
@@ -641,7 +669,7 @@ Uploads a SQLite file. Returns `{ "success": true, "db_uri": "sqlite:////tmp/...
 
 ---
 
-## 15. Architecture
+## 16. Architecture
 
 ```
 static/
@@ -686,7 +714,7 @@ drift apart.
 
 ---
 
-## 16. Testing
+## 17. Testing
 
 ```bash
 pytest tests/ -v          # the Python suite
@@ -731,11 +759,11 @@ node tests/ui_smoke.js               # the frontend
 
 **No API key at all?** The app still runs. The hosted embedding endpoint and
 the vector store both fall back to local implementations, and the model falls
-back to the mock when `MOCK_LLM=1` is set. See section 17.
+back to the mock when `MOCK_LLM=1` is set. See section 18.
 
 ---
 
-## 17. Troubleshooting
+## 18. Troubleshooting
 
 **"Could not reach the server."**
 The backend is not running, or the page was opened as a file rather than
@@ -789,7 +817,7 @@ keeps every answer reproducible and checkable. Name the columns you mean.
 
 ---
 
-## 18. Deployment
+## 19. Deployment
 
 ### Docker
 
@@ -815,6 +843,17 @@ this.
   authentication — add one before exposing it publicly.
 - Read-only database credentials are enough for most uses. Give the agent
   write access only if you intend to use the approval flow.
+
+---
+
+## Related documents
+
+- **[GETTING_STARTED.md](GETTING_STARTED.md)** — the starter's guide: install
+  to first verified answer, in about ten minutes.
+- **[QA_CHECKLIST.md](QA_CHECKLIST.md)** — a walkthrough for checking every
+  feature by hand, including accessibility.
+- **[IEEE_Documentation.md](IEEE_Documentation.md)** — the system
+  architecture, the safety design, and the evaluation results.
 
 ---
 

@@ -1603,15 +1603,20 @@ th[aria-sort="descending"] .grid__sort-icon {
     overflow-x: auto;
 }
 
+/* A tab is a container holding a label and a close button, so it is a
+   div with role="tab" rather than a <button> - nesting a button inside a
+   button is invalid HTML and breaks the close control. */
 .tab {
     display: flex;
     align-items: center;
     gap: var(--sp-2);
-    padding: 0 var(--sp-3);
+    padding: 0 var(--sp-2) 0 var(--sp-3);
     font-size: var(--text-sm);
     color: var(--text-muted);
     border-bottom: 2px solid transparent;
     white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
     transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
 }
 
@@ -1624,12 +1629,18 @@ th[aria-sort="descending"] .grid__sort-icon {
     border-bottom-color: var(--accent);
 }
 
+.tab__label {
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .tab__close {
     display: grid;
     place-items: center;
     width: 24px;
     height: 24px;
-    margin: -4px -4px -4px 0;
+    flex-shrink: 0;
     border-radius: var(--radius-sm);
     color: var(--text-muted);
     font-size: 15px;
@@ -1642,8 +1653,12 @@ th[aria-sort="descending"] .grid__sort-icon {
 }
 
 .tab--new {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     color: var(--text-muted);
     padding: 0 var(--sp-3);
+    border-bottom: 2px solid transparent;
 }
 
 .tab--new:hover {

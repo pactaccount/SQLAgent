@@ -57,6 +57,10 @@ class Element {
     get firstChild() { return this.children[0] || null; }
     get textContent() {
         if (this.children.length) return this.children.map((c) => c.textContent).join('');
+        // An element whose content was set via innerHTML has no child nodes
+        // in this stub, so fall back to the markup. Strip the tags to get
+        // the text a reader would see.
+        if (this._html) return this._html.replace(/<[^>]*>/g, '');
         return this._text;
     }
     set textContent(v) { this._text = v == null ? '' : String(v); this.children = []; }
@@ -105,7 +109,13 @@ class Element {
     removeAttribute(name) { delete this.attributes[name]; }
     addEventListener(type, fn) { (this.listeners[type] ||= []).push(fn); }
     dispatch(type, event = {}) {
-        (this.listeners[type] || []).forEach((fn) => fn({ preventDefault() {}, target: this, ...event }));
+        const payload = {
+            preventDefault() {},
+            stopPropagation() {},
+            target: this,
+            ...event,
+        };
+        (this.listeners[type] || []).forEach((fn) => fn(payload));
     }
     querySelector() { return null; }
     querySelectorAll() { return []; }
@@ -259,6 +269,11 @@ async function run() {
     } catch (err) {
         check('js/app.js loads without error', false, err.message);
     }
+
+    // The app module boots once and stays cached, so the tab-bar checks
+    // below drive the very same store the app is using.
+    const bootedStore = (await loadModule('js/state.js')).store;
+    const tabBar = registry.get('tab-bar');
 
     section('ui.js — helpers');
 
@@ -709,7 +724,7 @@ async function run() {
         return !meta || !meta.textContent.toLowerCase().includes('confidence');
     })());
 
-    section('state.js — sessions and panels');
+    section('state.js — sessions and tabs');
 
     const { store } = await loadModule('js/state.js');
 
@@ -744,11 +759,171 @@ async function run() {
         return store.state.activeSessionId === a.id;
     })());
 
+    check('messages are filed against the session they belong to', (() => {
+        const s1 = store.createSession();
+        store.addMessage(s1.id, { kind: 'user', text: 'first' });
+
+        const s2 = store.createSession();
+        store.addMessage(s2.id, { kind: 'user', text: 'second' });
+
+        return store.getSession(s1.id).messages.length === 1 &&
+               store.getSession(s1.id).messages[0].text === 'first' &&
+               store.getSession(s2.id).messages.length === 1 &&
+               store.getSession(s2.id).messages[0].text === 'second';
+    })());
+
+    check('a session keeps its own transcript after another is created', (() => {
+        const s1 = store.createSession();
+        store.addMessage(s1.id, { kind: 'user', text: 'kept' });
+        store.createSession();
+
+        return store.getSession(s1.id).messages.length === 1;
+    })());
+
+    check('clearing messages empties every session', (() => {
+        store.addMessage(store.activeSession.id, { kind: 'user', text: 'x' });
+        store.clearMessages();
+        return store.state.sessions.every((s) => s.messages.length === 0);
+    })());
+
+    check('closing a session moves to the next neighbour, not the far end', (() => {
+        const a = store.createSession();
+        const b = store.createSession();
+        const c = store.createSession();
+        store.setActiveSession(b.id);
+        store.removeSession(b.id);
+        // The tab to the right of the closed one, not the last tab in the list.
+        return store.state.activeSessionId === c.id;
+    })());
+
+    check('closing the last session moves to the one before it', (() => {
+        const a = store.createSession();
+        const b = store.createSession();
+        store.setActiveSession(b.id);
+        store.removeSession(b.id);
+        return store.state.activeSessionId === a.id;
+    })());
+
     check('panel state toggles', (() => {
         const before = store.state.panels.left;
         store.togglePanel('left');
         return store.state.panels.left === !before;
     })());
+
+    section('chat.js — transcripts');
+
+    const transcriptChat = new ChatPanel(new Element('div'), {});
+    const recorded = [];
+    transcriptChat.onRecord = (entry) => recorded.push(entry);
+
+    check('a user message is recorded', (() => {
+        transcriptChat.addUserMessage('hello');
+        return recorded.length === 1 && recorded[0].kind === 'user' && recorded[0].text === 'hello';
+    })());
+
+    check('an agent message is recorded with its data', (() => {
+        transcriptChat.addAgentMessage({
+            simple_answer: 'there are 347', sql_query: 'SELECT 1', cached: false,
+            error_traces: [], requires_approval: false, row_count: 1,
+        }, {});
+        const entry = recorded[recorded.length - 1];
+        return entry.kind === 'agent' && entry.data.simple_answer === 'there are 347';
+    })());
+
+    check('a system message is recorded', (() => {
+        transcriptChat.addSystemMessage('connected');
+        const entry = recorded[recorded.length - 1];
+        return entry.kind === 'system' && entry.text === 'connected';
+    })());
+
+    check('rendering a transcript does not re-record it', (() => {
+        const before = recorded.length;
+        transcriptChat.renderTranscript(recorded.slice());
+        return recorded.length === before;
+    })());
+
+    check('a restored transcript has the same message count', (() => {
+        const restored = new ChatPanel(new Element('div'), {});
+        restored.onRecord = () => {};
+        restored.renderTranscript(recorded.slice());
+        return restored.scroll.children.length === recorded.length;
+    })());
+
+    check('a restored transcript keeps the answer text', (() => {
+        const restored = new ChatPanel(new Element('div'), {});
+        restored.onRecord = () => {};
+        restored.renderTranscript(recorded.slice());
+        return restored.scroll.textContent.includes('347');
+    })());
+
+    section('app.js — the tab bar');
+
+    // These drive the store the app booted with, and check that the tab
+    // bar actually follows the session list. This is the regression that
+    // made new tabs appear to swallow the old ones.
+    {
+        const appStore = bootedStore;
+
+        const queryTabs = () =>
+            tabBar.children.filter(
+                (c) => c.className.includes('tab') && !c.className.includes('tab--new'),
+            );
+
+        check('the app renders a tab bar with the first session', (() => {
+            // The app creates one session at boot, and the tab bar shows
+            // one tab for it.
+            return queryTabs().length === appStore.state.sessions.length &&
+                   queryTabs().length >= 1;
+        })());
+
+        check('opening a new tab adds a tab rather than replacing the bar', (() => {
+            const before = queryTabs().length;
+            appStore.createSession();
+            return queryTabs().length === before + 1;
+        })());
+
+        check('opening a third tab keeps all three', (() => {
+            const before = queryTabs().length;
+            appStore.createSession();
+            return queryTabs().length === before + 1;
+        })());
+
+        check('every tab has a close control', (() => {
+            return queryTabs().every((tab) =>
+                tab.children.some((k) => k.className === 'tab__close'),
+            );
+        })());
+
+        check('the close control is a real button, not a nested interactive', (() => {
+            const close = queryTabs()[0].children.find((k) => k.className === 'tab__close');
+            return close.tagName === 'BUTTON';
+        })());
+
+        check('the tab itself is not a button, so nothing is nested', (() => {
+            return queryTabs()[0].tagName === 'DIV';
+        })());
+
+        check('the close control can actually be clicked', (() => {
+            const before = queryTabs().length;
+            const close = queryTabs()[0].children.find((k) => k.className === 'tab__close');
+            close.dispatch('click');
+            return queryTabs().length === before - 1;
+        })());
+
+        check('switching tabs marks exactly one tab active', (() => {
+            const sessions = appStore.state.sessions;
+            appStore.setActiveSession(sessions[0].id);
+            const active = tabBar.children.filter((c) => c.className.includes('is-active'));
+            return active.length === 1;
+        })());
+
+        check('a new tab can be opened from the + button', (() => {
+            const before = queryTabs().length;
+            const addButton = tabBar.children.find((c) => c.className.includes('tab--new'));
+            addButton.dispatch('click');
+            return queryTabs().length === before + 1;
+        })());
+    }
 
     section('wizard.js — URI building');
 
