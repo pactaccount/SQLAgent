@@ -476,7 +476,7 @@ export class ChatPanel {
     }
 
     /** Show the user's question. */
-    addUserMessage(text) {
+    addUserMessage(text, options = {}) {
         const body = el('div', { class: 'msg__body' });
         const bubble = el('div', { class: 'msg__bubble' });
         bubble.innerHTML = renderRichText(text);
@@ -490,6 +490,7 @@ export class ChatPanel {
         );
 
         this.scroll.append(message);
+        if (!options.silent) this.record({ kind: 'user', text });
         this.scrollToBottom();
         return message;
     }
@@ -745,12 +746,13 @@ export class ChatPanel {
         );
 
         this.scroll.append(message);
+        if (!handlers.silent) this.record({ kind: 'agent', data });
         this.scrollToBottom();
         return message;
     }
 
     /** Show a plain error message in the thread. */
-    addErrorMessage(text) {
+    addErrorMessage(text, options = {}) {
         const body = el('div', { class: 'msg__body' });
         body.append(
             el(
@@ -769,12 +771,13 @@ export class ChatPanel {
         );
 
         this.scroll.append(message);
+        if (!options.silent) this.record({ kind: 'error', text });
         this.scrollToBottom();
         return message;
     }
 
     /** Show a neutral system note. */
-    addSystemMessage(text, kind = 'info') {
+    addSystemMessage(text, kind = 'info', options = {}) {
         const body = el('div', { class: 'msg__body' });
         body.append(
             el(
@@ -793,8 +796,52 @@ export class ChatPanel {
         );
 
         this.scroll.append(message);
+        if (!options.silent) this.record({ kind: 'system', text, kind2: kind });
         this.scrollToBottom();
         return message;
+    }
+
+    /**
+     * Record a message into the transcript.
+     *
+     * The transcript lives on the session, not on this panel, so switching
+     * to another tab and back restores the conversation rather than
+     * leaving it empty.
+     */
+    record(entry) {
+        this.onRecord?.(entry);
+    }
+
+    /**
+     * Rebuild the thread from a session's transcript.
+     *
+     * Used when switching tabs. The messages are replayed through the same
+     * renderers that produced them originally, so a restored conversation is
+     * identical to the original - not a simplified version of it.
+     */
+    renderTranscript(messages, handlers = {}) {
+        this.scroll.replaceChildren();
+
+        for (const entry of messages || []) {
+            switch (entry.kind) {
+                case 'user':
+                    this.addUserMessage(entry.text, { silent: true });
+                    break;
+                case 'agent':
+                    this.addAgentMessage(entry.data, { ...handlers, silent: true });
+                    break;
+                case 'error':
+                    this.addErrorMessage(entry.text, { silent: true });
+                    break;
+                case 'system':
+                    this.addSystemMessage(entry.text, entry.kind2, { silent: true });
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        this.scrollToBottom({ force: true });
     }
 
     /**
