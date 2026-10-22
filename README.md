@@ -29,3 +29,7 @@ Open `http://localhost:8000`. Upload a SQLite database or connect to a database 
 ## Next engineering milestone
 
 Add authenticated users, a database allowlist, read-only credentials for ordinary queries, a SQL parser with one-statement enforcement, and a fixed Text-to-SQL benchmark with expected result sets before offering this as a hosted database service.
+
+## Résumé evidence
+
+[Résumé evidence and verification](docs/RESUME_EVIDENCE.md) records the use case, engineering approach, test status, measured results, limits, and safe résumé wording.
