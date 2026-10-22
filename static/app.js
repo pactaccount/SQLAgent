@@ -489,8 +489,15 @@ const appendMessage = (sender, text, meta = null) => {
             btnReject.innerText = 'Reject';
             btnReject.style.cssText = 'background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;';
             
-            btnReject.onclick = () => {
-                approvalBox.innerHTML = '<span style="color: #ef4444;">Query aborted by user.</span>';
+            btnReject.onclick = async () => {
+                btnApprove.disabled = true;
+                btnReject.disabled = true;
+                await fetch('/reject_approved', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({approval_id: meta.approval_id})
+                });
+                approvalBox.textContent = 'Query rejected.';
             };
             
             btnApprove.onclick = async () => {
@@ -501,11 +508,7 @@ const appendMessage = (sender, text, meta = null) => {
                     const res = await fetch('/execute_approved', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({
-                            sql: meta.sql_query,
-                            tenant_id: currentTenant,
-                            db_uri: currentDbUri
-                        })
+                        body: JSON.stringify({approval_id: meta.approval_id})
                     });
                     const data = await res.json();
                     if (data.success) {

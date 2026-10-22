@@ -1,101 +1,31 @@
-# Autonomous SQL Agent
+# SeaQL: Text-to-SQL Prototype
 
-An autonomous, self-healing Text-to-SQL agent built with Python, LangGraph, Google Gemini, Qdrant Cloud, and FastAPI. 
+A FastAPI and LangGraph demo for natural-language questions over a selected database. It can retrieve relevant schema from Qdrant when an embedding endpoint is configured, generate SQL with Gemini, retry after execution errors, and cache successful answers. The UI shows generated SQL and query results.
 
-This project democratizes data access by allowing non-technical users to query complex databases using plain English. It is built with enterprise security and reliability in mind, solving the core issues of traditional NL2SQL systems: schema hallucination, destructive query execution, and high latency.
+## Review gate
 
-## 🌟 Key Features
+Data-changing statements are intercepted for human review. The server now stores the drafted SQL and database URI behind a random approval ID that expires after ten minutes. Approval executes that stored statement once; the browser cannot replace it with a different SQL string. Rejection removes the pending statement. SQLite uploads receive server-generated filenames and a 25 MB size limit.
 
-1. **Self-Healing LLM Loop:** If the AI generates syntactically incorrect SQL, the system catches the database error, feeds the stack trace back to the AI, and prompts it to fix its own mistake autonomously (up to 3 retries).
-2. **Zero-Trust Security (HITL):** A deterministic security layer intercepts any destructive queries (e.g., `DROP`, `DELETE`, `UPDATE`) and requires manual Human-In-The-Loop approval before the query can touch the database.
-3. **Schema RAG via Qdrant:** Instead of passing massive database schemas directly to the LLM, the system generates embeddings of the schema using `sentence-transformers` and stores them in Qdrant. It retrieves only the relevant table structures for the current query, preventing hallucination.
-4. **Smart Semantic Caching:** Successful queries are stored in Qdrant's vector cache. If a new question is semantically identical (>85% match), the system instantly returns the cached result—eliminating API latency and LLM costs.
-5. **Multi-Database Support:** Natively connects to local SQLite files (via drag-and-drop browser uploads) or remote enterprise data warehouses like Snowflake, PostgreSQL, and MySQL.
+This is a **demo review gate**, not a security boundary for an untrusted multi-tenant database service. There is no user authentication or database allowlist; deploy it only with databases and credentials you control. The SQL keyword check is not a parser, so use a read-only database account when testing against remote systems. Do not present this project as zero-trust or enterprise-secure.
 
-## 🏛️ Architecture
+## Evidence and limits
 
-```mermaid
-graph TD
-    %% Nodes
-    User(("User"))
-    
-    subgraph Frontend ["Web Dashboard (Vanilla JS/CSS)"]
-        UI["Chat Interface & Visualizations"]
-    end
+`tests/test_approval_gate.py` checks token ownership, one-time execution, and rejection without model calls. `run_usecase_evals.py` is a small connected-system exercise for execution, retries, cache, and review behavior; it does not publish a statistically meaningful execution-accuracy result. Existing `tests/test_agent.py` and `tests/test_backend.py` require model and database services and should be treated as integration tests.
 
-    subgraph Backend ["FastAPI Application"]
-        API["/chat & /upload_db Endpoints"]
-    end
+## Run locally
 
-    subgraph Orchestration ["LangGraph State Machine"]
-        Cache["Semantic Cache Check"]
-        RAG["Schema Vector Search"]
-        Generator["Draft SQL (Gemini)"]
-        Executor["Safe SQL Executor"]
-        ErrorLoop["Error Analysis & Reroll"]
-    end
-    
-    subgraph Storage ["Cloud Infrastructure"]
-        VectorDB[("Qdrant Cloud")]
-        DB[("Target DB (Snowflake, SQLite)")]
-    end
-
-    %% Flow
-    User -->|"Question"| UI
-    UI -->|"JSON Request"| API
-    API --> Cache
-    Cache -->|"Hit (Cache)"| API
-    Cache -->|"Miss"| RAG
-    RAG <-->|"Top-K Tables"| VectorDB
-    RAG --> Generator --> Executor
-    Executor -->|"Safe SQL"| DB
-    Executor -.->|"Destructive Detected"| UI
-    DB -->|"Success"| API
-    DB -->|"Syntax Error"| ErrorLoop
-    ErrorLoop -->|"Correction"| Generator
-    API --> UI
-```
-
-## 🚀 Setup & Deployment
-
-### 1. Prerequisites
-- Python 3.9+
-- A Google Gemini API Key
-- A Qdrant Cloud Cluster URL and API Key (Free tier works perfectly)
-
-### 2. Local Setup
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/autonomous-sql-agent.git
-cd autonomous-sql-agent
-
-# Setup virtual environment
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-
-# Configure Environment Variables
 cp .env.template .env
-# Edit .env and add your GEMINI_API_KEY, QDRANT_URL, and QDRANT_API_KEY
-```
-
-### 3. Running the Server
-```bash
 uvicorn app:app --reload
 ```
-Open `http://localhost:8000` in your browser to access the beautiful glassmorphism dashboard. You can upload a `.sqlite` file directly through the UI to start querying!
 
-### 4. Running the Test Suite
-The project includes a robust `pytest` suite testing all core logic across both local SQLite and remote Snowflake.
-```bash
-pytest tests/ -v
-```
+Configure `GEMINI_API_KEY` and, for vector search, `HF_TOKEN` and optional `QDRANT_URL` / `QDRANT_API_KEY`. Without `HF_TOKEN`, the code does not embed schemas or populate the semantic cache. The default in-memory Qdrant instance is reset when the process exits.
 
-## 🛠️ Tech Stack
-- **AI/LLM:** Google Gemini (`gemini-1.5-flash`), LiteLLM, LangGraph, Langchain Tools
-- **Backend:** FastAPI, Uvicorn, Python, SQLAlchemy
-- **Vector Search:** Qdrant Client, `sentence-transformers`
-- **Frontend:** HTML5, Vanilla JavaScript, CSS3, Chart.js
+Open `http://localhost:8000`. Upload a SQLite database or connect to a database you own. Run the zero-credit review-gate tests with `pytest tests/test_approval_gate.py -q`.
 
-## 📄 License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## Next engineering milestone
+
+Add authenticated users, a database allowlist, read-only credentials for ordinary queries, a SQL parser with one-statement enforcement, and a fixed Text-to-SQL benchmark with expected result sets before offering this as a hosted database service.
