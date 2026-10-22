@@ -7,6 +7,8 @@ your explicit approval.
 Built with FastAPI, LangGraph, Google Gemini, Qdrant and vanilla ES modules.
 No build step: `pip install -r requirements.txt`, run the server, open the page.
 
+**Recruiter proof:** [live demo](https://seaql.onrender.com/) · [measured evidence and limits](docs/RESUME_EVIDENCE.md). The free-tier model can temporarily return HTTP 429 after several questions; the evidence page separates correct results from rate-limited requests.
+
 > **New here?** Start with **[GETTING_STARTED.md](GETTING_STARTED.md)** — a
 > ten-minute walkthrough from install to your first verified answer. This
 > README is the full reference.
@@ -90,7 +92,7 @@ Open **http://localhost:8000**.
 
 ### Try it without any setup
 
-The project ships with `chinook.db`, a sample music-store database. In the
+The project ships with `chinook.db`, an [MIT-licensed](CHINOOK_LICENSE.md) sample music-store database. In the
 connection wizard choose **"A database file on my computer"** and either:
 
 - upload `chinook.db` from the project folder, or

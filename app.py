@@ -164,7 +164,14 @@ def chat_endpoint(req: ChatRequest):
             confidence=final_state.get("confidence", {}),
         )
     except Exception as e:
-         raise HTTPException(status_code=500, detail=str(e))
+         message = str(e).lower()
+         if "429" in message or "quota exceeded" in message or "rate limit" in message:
+             raise HTTPException(
+                 status_code=429,
+                 detail="The demo model is temporarily rate limited. Please retry in about a minute.",
+                 headers={"Retry-After": "60"},
+             ) from e
+         raise HTTPException(status_code=500, detail="The question could not be completed. Please retry.") from e
 
 @app.post("/preview_sql")
 def preview_sql_endpoint(req: PreviewRequest):

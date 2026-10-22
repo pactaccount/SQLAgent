@@ -1,0 +1,176 @@
+{
+  "timestamp_utc": "2026-10-22T18:12:59.622145+00:00",
+  "base_url": "https://seaql.onrender.com",
+  "dataset": "Chinook SQLite, 11 tables",
+  "dataset_sha256": "7651ba378ac2fcd0dfc3c66fb101f7a7eed3ba39a612ec642b96e20702061f15",
+  "protocol": "fixed nine-question result equivalence; read-only; single run; no tuning on these questions",
+  "correct": 4,
+  "total": 9,
+  "per_question": [
+    {
+      "id": "artist_count",
+      "question": "How many artists are in the database?",
+      "expected_rows": [
+        [
+          275
+        ]
+      ],
+      "actual_rows": [
+        {
+          "COUNT(*)": 275
+        }
+      ],
+      "generated_sql": "SELECT COUNT(*) FROM Artist",
+      "http_status": 200,
+      "correct_result": true,
+      "latency_seconds": 6.14,
+      "error": [],
+      "rate_limited": false
+    },
+    {
+      "id": "album_count",
+      "question": "How many albums are in the database?",
+      "expected_rows": [
+        [
+          347
+        ]
+      ],
+      "actual_rows": [
+        {
+          "COUNT(AlbumId)": 347
+        }
+      ],
+      "generated_sql": "SELECT COUNT(AlbumId) FROM Album",
+      "http_status": 200,
+      "correct_result": true,
+      "latency_seconds": 12.45,
+      "error": [],
+      "rate_limited": false
+    },
+    {
+      "id": "rock_track_count",
+      "question": "How many tracks belong to the Rock genre?",
+      "expected_rows": [
+        [
+          1297
+        ]
+      ],
+      "actual_rows": [],
+      "generated_sql": null,
+      "http_status": 500,
+      "correct_result": false,
+      "latency_seconds": 15.97,
+      "error": "provider_rate_limited",
+      "rate_limited": true
+    },
+    {
+      "id": "track_album",
+      "question": "What is the album title for the track Fast As a Shark?",
+      "expected_rows": [
+        [
+          "Restless and Wild"
+        ]
+      ],
+      "actual_rows": [
+        {
+          "Title": "Restless and Wild"
+        }
+      ],
+      "generated_sql": "SELECT T2.Title FROM Track AS T1 INNER JOIN Album AS T2 ON T1.AlbumId = T2.AlbumId WHERE T1.Name = 'Fast As a Shark'",
+      "http_status": 200,
+      "correct_result": true,
+      "latency_seconds": 15.88,
+      "error": [],
+      "rate_limited": false
+    },
+    {
+      "id": "invoices_2024",
+      "question": "How many invoices were issued in 2024?",
+      "expected_rows": [
+        [
+          83
+        ]
+      ],
+      "actual_rows": [
+        {
+          "COUNT(InvoiceId)": 83
+        }
+      ],
+      "generated_sql": "SELECT COUNT(InvoiceId) FROM Invoice WHERE strftime('%Y', InvoiceDate) = '2024'",
+      "http_status": 200,
+      "correct_result": true,
+      "latency_seconds": 12.07,
+      "error": [],
+      "rate_limited": false
+    },
+    {
+      "id": "genre_count",
+      "question": "How many distinct genres are in the Genre table?",
+      "expected_rows": [
+        [
+          25
+        ]
+      ],
+      "actual_rows": [],
+      "generated_sql": null,
+      "http_status": 500,
+      "correct_result": false,
+      "latency_seconds": 7.77,
+      "error": "provider_rate_limited",
+      "rate_limited": true
+    },
+    {
+      "id": "top_album_artist",
+      "question": "Which artist has the most albums? Return the artist name and album count.",
+      "expected_rows": [
+        [
+          "Iron Maiden",
+          21
+        ]
+      ],
+      "actual_rows": [],
+      "generated_sql": null,
+      "http_status": 500,
+      "correct_result": false,
+      "latency_seconds": 7.94,
+      "error": "provider_rate_limited",
+      "rate_limited": true
+    },
+    {
+      "id": "invoice_revenue",
+      "question": "What is the total invoice revenue, rounded to two decimal places?",
+      "expected_rows": [
+        [
+          2328.6
+        ]
+      ],
+      "actual_rows": [],
+      "generated_sql": null,
+      "http_status": 500,
+      "correct_result": false,
+      "latency_seconds": 7.82,
+      "error": "provider_rate_limited",
+      "rate_limited": true
+    },
+    {
+      "id": "top_customer_country",
+      "question": "Which country has the most customers? Return the country and number of customers.",
+      "expected_rows": [
+        [
+          "USA",
+          13
+        ]
+      ],
+      "actual_rows": [],
+      "generated_sql": null,
+      "http_status": 500,
+      "correct_result": false,
+      "latency_seconds": 7.79,
+      "error": "provider_rate_limited",
+      "rate_limited": true
+    }
+  ],
+  "completed": 4,
+  "correct_on_completed": 4,
+  "rate_limited": 5
+}

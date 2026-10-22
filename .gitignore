@@ -18,10 +18,10 @@ __pycache__/
 htmlcov/
 
 # Databases & local stores
-chinook.db
 *.sqlite
 *.sqlite3
 *.db
+!chinook.db
 
 # macOS
 .DS_Store
