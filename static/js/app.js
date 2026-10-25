@@ -14,7 +14,7 @@ import { initIcons } from './icons-init.js';
 import { ChatPanel, buildApprovalCard } from './chat.js';
 import { DataGrid } from './datagrid.js';
 import { SchemaExplorer } from './explorer.js';
-import { ConnectionWizard } from './wizard.js';
+import { ConnectionWizard } from './wizard.js?v=csv-picker-2';
 import { buildChart } from './chart.js';
 
 const dom = {

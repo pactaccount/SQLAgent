@@ -284,7 +284,7 @@ rate-limited or unauthorized.
 
 `api.js` centralizes request handling and errors. `state.js` stores connection and
 per-tab display state. `wizard.js` implements file selection and connection steps;
-it accepts both CSV and SQLite. `chat.js` renders messages, editable SQL and approval
+it allows native file selection without an OS type filter; the server validates CSV and SQLite extensions and contents. `chat.js` renders messages, editable SQL and approval
 cards. `explorer.js` shows tables and columns. `datagrid.js` handles result sorting,
 filtering, paging and export. `chart.js` selects supported chart shapes from result
 columns. `ui.js`, `toast.js` and `icons-init.js` provide shared rendering helpers,

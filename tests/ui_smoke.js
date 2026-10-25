@@ -941,11 +941,11 @@ async function run() {
 
     const wizard = new ConnectionWizard(modal, {});
 
-    check('the computer file picker accepts CSV as well as SQLite', (() => {
+    check('the computer picker does not disable CSV through native type filtering', (() => {
         const fields = wizard._sqliteFields();
         const descendants = (node) => [node, ...node.children.flatMap(descendants)];
         const picker = descendants(fields).find(node => node.getAttribute('id') === 'wizard-file');
-        return picker && picker.getAttribute('accept').includes('.csv');
+        return picker && picker.getAttribute('accept') === null;
     })());
 
     check('a sqlite path becomes a sqlite URI', (() => {

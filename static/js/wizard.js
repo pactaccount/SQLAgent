@@ -205,7 +205,8 @@ export class ConnectionWizard {
         const fileInput = el('input', {
             type: 'file',
             id: 'wizard-file',
-            accept: '.csv,.sqlite,.sqlite3,.db',
+            // Do not let native OS type filtering disable valid CSV files.
+            // The upload endpoint validates supported extensions and file contents.
             class: 'visually-hidden',
             onchange: (event) => this._handleUpload(event.target.files[0]),
         });
