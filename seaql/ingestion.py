@@ -5,10 +5,9 @@ import math
 from pathlib import Path
 import re
 import sqlite3
+import sys
 
-csv.field_size_limit(1024 * 1024)
-MAX_COLUMNS = 200
-MAX_ROWS = 1_000_000
+csv.field_size_limit(sys.maxsize)
 
 
 def quoted(identifier):
@@ -46,14 +45,12 @@ def import_csv(source, destination, filename):
                 "CSV is empty. Include a header row and at least one data row."
             )
         headers = [name.strip() for name in headers]
-        if len(headers) > MAX_COLUMNS:
-            raise ValueError(f"CSV supports at most {MAX_COLUMNS} columns.")
         if any(
-            not name or len(name) > 200 or any(ord(c) < 32 for c in name)
+            not name or any(ord(c) < 32 for c in name)
             for name in headers
         ):
             raise ValueError(
-                "CSV column names must be nonempty, readable names of at most 200 characters."
+                "CSV column names must be nonempty, readable names."
             )
         if len({name.casefold() for name in headers}) != len(headers):
             raise ValueError("CSV column names must be unique (ignoring letter case).")
@@ -67,8 +64,6 @@ def import_csv(source, destination, filename):
                     f"CSV record {line} has {len(row)} fields; expected {len(headers)}."
                 )
             count += 1
-            if count > MAX_ROWS:
-                raise ValueError(f"CSV supports at most {MAX_ROWS:,} data rows.")
             for index, value in enumerate(row):
                 candidate = value_type(value)
                 if candidate is None:

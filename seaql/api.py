@@ -13,7 +13,7 @@ import secrets
 import time
 from threading import Lock
 from seaql.database import get_schema_json
-from seaql.config import ROOT, DATA, UPLOAD_BYTES
+from seaql.config import ROOT, DATA
 from seaql.model import ModelServiceError, health
 from seaql.starters import generate_starter_questions
 from seaql.presentation import analysis as analyze_sql, preview as preview_sql
@@ -70,14 +70,7 @@ async def upload_db_endpoint(file: UploadFile = File(...)):
             dir=upload_dir, suffix=suffix, delete=False
         ) as buffer:
             file_path = buffer.name
-            size = 0
             while chunk := await file.read(1024 * 1024):
-                size += len(chunk)
-                if size > UPLOAD_BYTES:
-                    raise HTTPException(
-                        status_code=413,
-                        detail="Database upload exceeds the configured size limit.",
-                    )
                 buffer.write(chunk)
 
         metadata = {}
@@ -303,7 +296,6 @@ def reject_approved_endpoint(req: ExecuteApprovedRequest):
 class RunSQLRequest(BaseModel):
     sql: str
     db_uri: str
-    limit: int = 200
 
 
 class PreviewRequest(BaseModel):
@@ -332,13 +324,12 @@ def run_sql_endpoint(req: RunSQLRequest):
         if not result["success"]:
             raise ValueError(result["error"])
         rows = result["result"]
-        cap = max(1, min(req.limit, 1000))
         return {
             **result,
-            "result": rows[:cap],
+            "result": rows,
             "columns": list(rows[0]) if rows else [],
-            "row_count": min(len(rows), cap),
-            "truncated": result.get("truncated", False) or len(rows) > cap,
+            "row_count": len(rows),
+            "truncated": result.get("truncated", False),
         }
     except Exception as error:
         raise HTTPException(status_code=400, detail=str(error)) from error

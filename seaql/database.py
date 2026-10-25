@@ -7,7 +7,7 @@ from pathlib import Path
 from sqlalchemy.engine import make_url
 import sqlglot
 from sqlglot import exp
-from seaql.config import ROOT, MAX_ROWS, QUERY_SECONDS
+from seaql.config import ROOT, QUERY_SECONDS
 
 
 def database_path(db_uri):
@@ -159,9 +159,9 @@ def execute_sql(sql, db_uri, bypass_approval=False):
             names = [c[0] for c in cursor.description]
             if len(set(names)) != len(names):
                 raise ValueError("Use unique column aliases in the result.")
-            rows = cursor.fetchmany(MAX_ROWS + 1)
-            truncated = len(rows) > MAX_ROWS
-            result = [dict(zip(names, r)) for r in rows[:MAX_ROWS]]
+            rows = cursor.fetchall()
+            truncated = False
+            result = [dict(zip(names, r)) for r in rows]
         else:
             truncated = False
             result = [{"status": "Success", "rows_affected": cursor.rowcount}]
@@ -171,7 +171,6 @@ def execute_sql(sql, db_uri, bypass_approval=False):
             "requires_approval": False,
             "result": result,
             "truncated": truncated,
-            "row_limit": MAX_ROWS,
         }
     except Exception as e:
         if db:

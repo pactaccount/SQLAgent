@@ -30,10 +30,9 @@ Python 3.12 is the supported deployment version. For a fresh installation:
 ```bash
 python3.12 -m venv .venv-backend
 .venv-backend/bin/python -m pip install -r requirements.lock.txt
-cp .env.template .env
 ```
 
-Set `NVIDIA_API_KEY` in `.env` without committing it. Then run:
+Set `NVIDIA_API_KEY` in your shell environment or a local, untracked `.env` file. Then run:
 
 ```bash
 .venv-backend/bin/python -m uvicorn app:app --host 127.0.0.1 --port 8000

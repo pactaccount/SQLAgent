@@ -135,8 +135,7 @@ input at the project root; it is not bundled into the deployment.
 
 The upload endpoint restricts extensions to `.db`, `.sqlite`, `.sqlite3` and `.csv`.
 It generates a destination filename rather than trusting the client filename as a
-server path. Upload bytes are read in chunks and checked against the configured
-limit. SQLite uploads must open successfully and contain application tables before
+server path. Upload bytes are streamed to disk without an application size cap. SQLite uploads must open successfully and contain application tables before
 the server returns a usable connection.
 
 Incomplete or invalid files are removed from the upload directory. This validation
@@ -164,9 +163,8 @@ become TEXT. Only finite recognized numeric strings become floating-point values
 UTF-8 byte-order marks, quoted commas and quoted newlines are supported. Dates are
 not automatically reinterpreted; units and currencies are not inferred.
 
-Limits are 200 columns, 1,000,000 data rows, a 1 MiB field parsing limit and the
-configured upload-byte cap. These are resource bounds, not measured capacity or
-throughput guarantees. Excel workbooks, semicolon-separated files, automatic
+The application imposes no upload-byte, CSV-row or CSV-column quota. CSV fields
+use the platform parser maximum; SQLite and hosting capacity still apply. Excel workbooks, semicolon-separated files, automatic
 multi-file joins and arbitrary encodings are not supported.
 
 ### 5.3 Schema inspection
@@ -240,9 +238,10 @@ Read queries use an existing file in SQLite read-only mode, query-only configura
 a restricted authorizer and disabled trusted-schema behavior. Selected file and
 extension functions are denied. Missing database paths do not create empty files.
 
-Defaults are a ten-second SQLite VM execution budget and 1,000 returned rows. A
-progress callback interrupts long VM work. Results fetch one extra row to detect
-truncation. These do not constitute a full operating-system memory or CPU sandbox.
+The default SQLite VM execution budget is ten seconds. A progress callback
+interrupts long VM work. All query-result rows are returned without an application
+row cap; available server memory still limits practical result sizes. These controls
+do not constitute a full operating-system memory or CPU sandbox.
 Duplicate result aliases are rejected because dictionary output would lose columns.
 Connections are explicitly closed; failed writes roll back.
 
@@ -270,7 +269,7 @@ complete authorization model for an untrusted shared database service.
 | `POST /schema` | Fetch database structure | Tables, columns, types and key flags |
 | `POST /starter_questions` | Suggest questions from schema | Starter questions without a model call |
 | `POST /chat` | Run the agent | SQL/results, clarification, errors or approval token |
-| `POST /run_sql` | Run edited read SQL | Bounded records and truncation; writes refused |
+| `POST /run_sql` | Run edited read SQL | Complete query results; writes refused |
 | `POST /preview_sql` | Inspect proposed change | Classification and read-only impact estimate where available |
 | `POST /execute_approved` | Consume stored approval | Execution outcome for server-stored SQL |
 | `POST /reject_approved` | Reject pending action | Invalidation acknowledgement |
@@ -307,7 +306,7 @@ Each report is saved after every case and existing reports are not overwritten.
 
 Offline tests inject model responses while exercising the real agent graph and API.
 They cover clarification, repair exhaustion, provider errors, unsupported statements,
-time limits, row caps, approval replay, CSV validation and result scoring. The
+time limits, complete result retrieval, approval replay, CSV validation and result scoring. The
 interface smoke suite exercises modules against a lightweight DOM stub. It is not
 an actual browser or visual accessibility audit. Model benchmarks are separate from
 these software checks and consume provider quota. Cleanup does not rerun inference.
@@ -321,8 +320,9 @@ The detailed evaluation protocol, run results and interpretation are maintained 
 `seaql/config.py` locates the project root from its own file, loads `.env` without
 overriding deployed environment variables, and reads runtime limits. The application
 uses `NVIDIA_API_KEY`, optional `NVIDIA_API_BASE` and `NVIDIA_MODEL`, plus
-`SQLAGENT_DATA_DIR`, `SQLAGENT_MAX_ROWS`, `SQLAGENT_QUERY_SECONDS` and
-`SQLAGENT_UPLOAD_MB`. Defaults are 1,000 rows, ten seconds and 150 MiB upload bytes.
+`SQLAGENT_DATA_DIR` and `SQLAGENT_QUERY_SECONDS` (ten seconds by default).
+Credentials belong in hosting environment settings or an ignored local `.env`.
+There is no tracked environment template and no configurable row or upload quota.
 
 Direct dependency versions are in `requirements.txt`; development additions are in
 `requirements-dev.txt`. `requirements.lock.txt` records the tested complete resolved

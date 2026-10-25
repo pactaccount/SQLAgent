@@ -136,8 +136,9 @@ are not overwritten. A provider error stops the suite rather than spending reque
 on the remaining tasks and leaves an incomplete report.
 
 The reference executor is read-only, capped at 10,000 rows and 20 seconds. Application
-execution defaults to 1,000 rows and ten seconds. Different limits are documented and
-truncation cannot be mistaken for accuracy. No token-cost metric is reported because
+execution used 1,000 rows and ten seconds for the recorded runs. The application
+row cap has since been removed; the ten-second execution budget remains. Historical
+results are unchanged, and truncation cannot be mistaken for accuracy. No token-cost metric is reported because
 the current gateway does not retain provider token usage.
 
 ## Reproduction

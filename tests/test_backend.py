@@ -68,10 +68,13 @@ def test_valid_upload(database):
         uploaded.unlink()
 
 
-def test_row_cap_is_marked(monkeypatch, database):
-    monkeypatch.setattr(tools, "MAX_ROWS", 2)
-    result = tools.execute_sql("SELECT * FROM orders", database)
-    assert result["success"] and result["truncated"] and len(result["result"]) == 2
+def test_results_are_not_capped(database):
+    result = tools.execute_sql(
+        "WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM n WHERE x<1005) SELECT x FROM n",
+        database,
+    )
+    assert result["success"] and not result["truncated"]
+    assert len(result["result"]) == 1005
 
 
 def test_existing_interface_endpoints(database):
@@ -83,8 +86,8 @@ def test_existing_interface_endpoints(database):
     )
     assert (
         read.status_code == 200
-        and read.json()["row_count"] == 2
-        and read.json()["truncated"]
+        and read.json()["row_count"] == 3
+        and not read.json()["truncated"]
     )
     blocked = client.post(
         "/run_sql", json={"sql": "DELETE FROM orders", "db_uri": database}

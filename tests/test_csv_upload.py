@@ -93,10 +93,13 @@ def test_invalid_csv_rejected_and_files_cleaned(client, content):
     assert not list(service.DATA.rglob("*.sqlite"))
 
 
-def test_limit_applies_before_conversion(client, monkeypatch):
-    monkeypatch.setattr(service, "UPLOAD_BYTES", 4)
-    assert upload(client, b"a,b\n1,2\n").status_code == 413
-    assert not list(service.DATA.rglob("*.*"))
+def test_csv_beyond_previous_field_and_column_caps(client):
+    headers = [f"c{i}" for i in range(201)]
+    values = ["x" * (1024 * 1024 + 1)] + ["1"] * 200
+    content = (",".join(headers) + "\n" + ",".join(values) + "\n").encode()
+    result = upload(client, content)
+    assert result.status_code == 200
+    assert result.json()["row_count"] == 1
 
 
 def test_large_identifier_not_coerced_to_float(client):

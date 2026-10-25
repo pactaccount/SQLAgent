@@ -95,11 +95,11 @@ export const api = {
     },
 
     /** Run a read-only statement the user typed. */
-    runSql(sql, dbUri, limit = 200) {
+    runSql(sql, dbUri) {
         return request('/run_sql', {
             method: 'POST',
             headers: JSON_HEADERS,
-            body: JSON.stringify({ sql, db_uri: dbUri, limit }),
+            body: JSON.stringify({ sql, db_uri: dbUri }),
         });
     },
 

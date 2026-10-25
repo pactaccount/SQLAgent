@@ -1,7 +1,6 @@
 # Secrets and private notes
 .env
 .env.*
-!.env.template
 .local/
 
 # Environments and generated files

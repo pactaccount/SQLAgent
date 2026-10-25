@@ -337,7 +337,7 @@ async function runEditedSql(session, sql) {
     const started = performance.now();
 
     try {
-        const result = await api.runSql(sql, connection.dbUri, 500);
+        const result = await api.runSql(sql, connection.dbUri);
         typing.remove();
 
         const elapsed = performance.now() - started;
