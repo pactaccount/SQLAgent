@@ -1,35 +1,106 @@
-# SeaQL: Text-to-SQL Prototype
+# SeaQL — Text-to-SQL Agent Evaluation
 
-A FastAPI and LangGraph demo for natural-language questions over a selected database. It can retrieve relevant schema from Qdrant when an embedding endpoint is configured, generate SQL with Gemini, retry after execution errors, and cache successful answers. The UI shows generated SQL and query results.
+SeaQL turns questions about a SQLite database into SQL and actual result tables.
+It is intended for analysts and operations staff who understand their business
+questions but do not want to write every query manually. Its evaluation framework
+measures whether results are correct, rather than treating executable SQL as correct.
 
-## Review gate
+## Architecture
 
-Data-changing statements are intercepted for human review. The server now stores the drafted SQL and database URI behind a random approval ID that expires after ten minutes. Approval executes that stored statement once; the browser cannot replace it with a different SQL string. Rejection removes the pending statement. SQLite uploads receive server-generated filenames and a 25 MB size limit.
-
-This is a **demo review gate**, not a security boundary for an untrusted multi-tenant database service. There is no user authentication or database allowlist; deploy it only with databases and credentials you control. The SQL keyword check is not a parser, so use a read-only database account when testing against remote systems. Do not present this project as zero-trust or enterprise-secure.
-
-## Evidence and limits
-
-`tests/test_approval_gate.py` checks token ownership, one-time execution, and rejection without model calls. `run_usecase_evals.py` is a small connected-system exercise for execution, retries, cache, and review behavior; it does not publish a statistically meaningful execution-accuracy result. Existing `tests/test_agent.py` and `tests/test_backend.py` require model and database services and should be treated as integration tests.
-
-## Run locally
-
-```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-cp .env.template .env
-uvicorn app:app --reload
+```mermaid
+flowchart LR
+    U[Question] --> A[SQL agent]
+    S[Schema and business rules] --> A
+    A <--> M[One NVIDIA API model]
+    A <--> D[(SQLite database)]
+    A --> R[SQL and result table]
+    R --> E[Compare with reference results]
+    E --> P[Evaluation report]
 ```
 
-Configure `GEMINI_API_KEY` and, for vector search, `HF_TOKEN` and optional `QDRANT_URL` / `QDRANT_API_KEY`. Without `HF_TOKEN`, the code does not embed schemas or populate the semantic cache. The default in-memory Qdrant instance is reset when the process exits.
+FastAPI calls the LangGraph agent. The agent reads schema directly, supplies explicit
+business rules, and asks one configured model for SQL or clarification. Parsed read
+queries execute through read-only SQLite connections with time and row limits.
+Failures can trigger up to three failed attempts. Final answers format actual values;
+no second model is needed for summarization. Qdrant, embeddings, model weights and
+GPUs are not required by this application path. Caching is disabled.
 
-Open `http://localhost:8000`. Upload a SQLite database or connect to a database you own. Run the zero-credit review-gate tests with `pytest tests/test_approval_gate.py -q`.
+## Run the agent evaluation
 
-## Next engineering milestone
+The prepared `.venv-backend` and root `olist.sqlite` are required. Configure the
+existing `NVIDIA_API_KEY` in `.env`; `.env.template` lists optional settings.
 
-Add authenticated users, a database allowlist, read-only credentials for ordinary queries, a SQL parser with one-statement enforcement, and a fixed Text-to-SQL benchmark with expected result sets before offering this as a hosted database service.
+```bash
+.venv-backend/bin/python eval/run_agent_eval.py
+```
 
-## Résumé evidence
+This intentionally calls the model API using the same `run_agent` entry point as
+`/chat`. It evaluates 26 SQL questions and four clarification cases. Reports save
+after every case under `artifacts/agent_eval/`, with a new timestamped filename.
+Provider failure stops the run and marks it incomplete. Clarification and unsupported
+business assumptions require review; they are not automatically awarded correctness.
+The ten reserved final questions are not used in this run.
 
-[Résumé evidence and verification](docs/RESUME_EVIDENCE.md) records the use case, engineering approach, test status, measured results, limits, and safe résumé wording.
+No-cost checks:
+
+```bash
+.venv-backend/bin/python -m pytest -q
+.venv-backend/bin/python eval/run_agent_eval.py --validate-only
+```
+
+Run the web application:
+
+```bash
+.venv-backend/bin/python -m uvicorn app:app --host 127.0.0.1 --port 8000
+```
+
+Use `sqlite:///olist.sqlite` as the database selection. No file upload is needed.
+The API key stays on the server. `/health` reports configuration without making a
+model call. For a fresh Python 3.12 environment, install `requirements.lock.txt`;
+that file records the tested complete dependency set, including test dependencies.
+
+## CSV uploads
+
+Choose **SQLite / CSV (My Computer)**, upload a UTF-8 comma-separated file with a
+header row, then click **Connect & Save**. Each CSV becomes one SQLite table named
+after the filename; the upload message shows the table name and row count. Numeric
+columns are inferred, leading-zero identifiers remain text, and empty cells become
+NULL. Duplicate/empty headers, inconsistent field counts and malformed CSV are
+rejected. The streaming importer supports up to 200 columns and 1,000,000 rows,
+subject to the configured upload-byte limit. It uses only Python's standard library.
+CSV queries use generic schema rules; Olist-specific rules remain for the Olist schema.
+
+This support is included in the standard Docker deployment. On Render Free, uploaded
+files still disappear on service restart/spin-down/redeploy; CSV support does not add
+persistent hosting storage. Re-upload when needed. No model files are included.
+
+## Verification and limits
+
+50 offline tests passed, 26 reference queries validated, and one real API-backed
+agent question matched its reference result. This smoke test is not an accuracy
+benchmark. The previous local Qwen baseline scored **10/26 (38.5%)** after an audited
+reference correction; it is a different model and evaluation path.
+
+The agent evaluator measures application workflow latency, not hosted browser/HTTP
+latency. This checkout has not been verified as a live deployment. It remains a
+controlled demonstration: no user authentication or database allowlist is implemented,
+connections are caller-supplied, browser tab state needs further isolation, and write
+approvals are process-local. Use trusted databases and private access. The source
+Olist database is protected from writes through the executor. Uploaded files must
+be validated SQLite and fit the configurable size limit. Runtime files on a free
+host may be ephemeral; persistent hosting remains a separate unverified step.
+
+Model training, fine-tuning, specialist model routing and automatic learning are
+outside scope. Optional local-model scripts remain for reproducing the original
+experiment. Old Qdrant, Snowflake and unused persistence experiments are preserved
+under `archive/legacy/` and excluded from the active tests and container.
+
+## Documentation
+
+- [System definition, users, processing and structure](docs/SYSTEM_OVERVIEW.md)
+- [IEEE-style technical description](IEEE_Documentation.md)
+- [Evaluation protocol](eval/README.md)
+- [Evaluation results and limitations](docs/EVALUATION.md)
+- [Database provenance](DATABASE_SOURCE.md)
+- [Initial questions](business_questions.md)
+- [Reserved final questions](final_holdout_questions.md)

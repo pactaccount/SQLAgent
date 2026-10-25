@@ -5,12 +5,16 @@ from agent import run_agent
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.concurrency import run_in_threadpool
+from csv_import import import_csv
 import os
 import tempfile
 import secrets
 import time
 from threading import Lock
-from vector_store import vector_store
+from tools import get_schema_json, database_path
+from settings import ROOT, DATA, UPLOAD_BYTES
+from model_gateway import ModelServiceError, health
 
 # A reviewed statement is stored server-side and can be executed once within ten minutes.
 # This is a demo review gate, not an authorization boundary for untrusted databases.
@@ -30,25 +34,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-if not os.path.exists("static"):
-    os.makedirs("static")
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory=str(ROOT / "static")), name="static")
 
 @app.post("/upload_db")
 async def upload_db_endpoint(file: UploadFile = File(...)):
     """
-    Handles file uploads for local SQLite databases.
-    Saves them to the server's temp directory and returns a valid SQLAlchemy URI.
+    Accept SQLite or UTF-8 CSV; CSV becomes a queryable SQLite table.
     """
     filename = file.filename or ""
-    if not filename.lower().endswith(('.db', '.sqlite', '.sqlite3')):
-         raise HTTPException(status_code=400, detail="Only .db and .sqlite files are allowed.")
+    if not filename.lower().endswith(('.db', '.sqlite', '.sqlite3', '.csv')):
+         raise HTTPException(status_code=400, detail="Choose a .csv, .db, .sqlite or .sqlite3 file.")
          
-    upload_dir = os.path.join(tempfile.gettempdir(), "sql_agent_uploads")
+    upload_dir = str(DATA / "uploads")
     os.makedirs(upload_dir, exist_ok=True)
     
     suffix = os.path.splitext(filename)[1].lower()
     file_path = None
+    converted_path = None
     
     try:
         with tempfile.NamedTemporaryFile(dir=upload_dir, suffix=suffix, delete=False) as buffer:
@@ -56,20 +58,35 @@ async def upload_db_endpoint(file: UploadFile = File(...)):
             size = 0
             while chunk := await file.read(1024 * 1024):
                 size += len(chunk)
-                if size > 25 * 1024 * 1024:
-                    raise HTTPException(status_code=413, detail="Database upload exceeds 25 MB.")
+                if size > UPLOAD_BYTES:
+                    raise HTTPException(status_code=413, detail="Database upload exceeds the configured size limit.")
                 buffer.write(chunk)
             
-        uri = f"sqlite:///{file_path}"
-        return {"success": True, "db_uri": uri, "filename": os.path.basename(filename)}
-    except HTTPException:
-        if file_path:
+        metadata = {}
+        if suffix == '.csv':
+            with tempfile.NamedTemporaryFile(dir=upload_dir, suffix='.sqlite', delete=False) as converted:
+                converted_path = converted.name
+            try:
+                metadata = await run_in_threadpool(import_csv, file_path, converted_path, filename)
+            except ValueError as error:
+                raise HTTPException(status_code=400, detail=str(error)) from error
             os.unlink(file_path)
+            file_path = converted_path
+        uri = f"sqlite:///{file_path}"
+        inspected = await run_in_threadpool(get_schema_json, uri)
+        if not inspected["success"]:
+            raise HTTPException(status_code=400, detail="Upload is not a usable SQLite database.")
+        return {"success": True, "db_uri": uri, "filename": os.path.basename(filename), **metadata}
+    except HTTPException:
+        for path in {file_path, converted_path} - {None}:
+            if os.path.exists(path):
+                os.unlink(path)
         raise
     except Exception as e:
-        if file_path:
-            os.unlink(file_path)
-        raise HTTPException(status_code=500, detail=str(e))
+        for path in {file_path, converted_path} - {None}:
+            if os.path.exists(path):
+                os.unlink(path)
+        raise HTTPException(status_code=500, detail="The uploaded file could not be processed.")
 
 class ConnectRequest(BaseModel):
     tenant_id: str
@@ -91,21 +108,27 @@ class ChatResponse(BaseModel):
     cached: bool
     requires_approval: bool
     approval_id: str | None = None
+    clarification: bool = False
+    truncated: bool = False
+    model_id: str = "unknown"
+    retry_count: int = 0
 
 @app.get("/", response_class=HTMLResponse)
 async def get_root():
-    with open("static/index.html", "r") as f:
+    with open(ROOT / "static" / "index.html", "r") as f:
         return f.read()
 
 @app.post("/connect")
 def connect_endpoint(req: ConnectRequest):
     """
     Called when a user configures their database in the UI.
-    Initializes the schema into ChromaDB for their specific tenant.
+    Validates the selected SQLite database and reads its schema directly.
     """
     try:
-        vector_store.init_schema_rag(req.db_uri, req.tenant_id)
-        return {"success": True, "message": "Database connected and schema indexed successfully."}
+        inspected = get_schema_json(req.db_uri)
+        if not inspected["success"]:
+            raise ValueError(inspected["error"])
+        return {"success": True, "message": "SQLite database connected; schema read successfully.", "table_count": len(inspected["tables"])}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -149,9 +172,15 @@ def chat_endpoint(req: ChatRequest):
             cached=final_state.get("cached_result", False),
             requires_approval=final_state.get("requires_approval", False),
             approval_id=approval_id,
+            clarification=final_state.get("clarification", False),
+            truncated=final_state.get("truncated", False),
+            model_id=final_state.get("model_id", "unknown"),
+            retry_count=final_state.get("retry_count", 0),
         )
-    except Exception as e:
-         raise HTTPException(status_code=500, detail=str(e))
+    except ModelServiceError as e:
+         raise HTTPException(status_code=503, detail=str(e))
+    except Exception:
+         raise HTTPException(status_code=500, detail="The query could not be completed.")
 
 @app.post("/execute_approved")
 def execute_approved_endpoint(req: ExecuteApprovedRequest):
@@ -178,6 +207,10 @@ def reject_approved_endpoint(req: ExecuteApprovedRequest):
     if not removed:
         raise HTTPException(status_code=404, detail="Approval expired or already used.")
     return {"success": True}
+
+@app.get("/health")
+def health_endpoint():
+    return {"status": "ok", "inference": health(), "schema_source": "direct_sqlite", "cache_enabled": False}
 
 if __name__ == "__main__":
     uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)

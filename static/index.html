@@ -59,7 +59,7 @@
             <div class="form-group">
                 <label>Database Type</label>
                 <select id="db-type-select" style="width: 100%; padding: 10px; border-radius: 6px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: white; font-family: monospace;" onchange="toggleDbFields()">
-                    <option value="sqlite">SQLite (Local)</option>
+                    <option value="sqlite">SQLite / CSV (My Computer)</option>
                     <option value="postgresql">PostgreSQL</option>
                     <option value="mysql">MySQL</option>
                     <option value="snowflake">Snowflake</option>
@@ -69,8 +69,8 @@
             <!-- SQLite Fields -->
             <div id="fields-sqlite" class="db-fields-group">
                 <div class="form-group">
-                    <label>Upload Database File (.sqlite, .db)</label>
-                    <input type="file" id="sqlite-upload" accept=".sqlite,.sqlite3,.db" onchange="uploadSQLiteFile(event)" style="background: rgba(255,255,255,0.05); padding: 5px;">
+                    <label>Upload SQLite or CSV File (.csv, .sqlite, .sqlite3, .db)</label>
+                    <input type="file" id="sqlite-upload" accept=".csv,.sqlite,.sqlite3,.db" onchange="uploadSQLiteFile(event)" style="background: rgba(255,255,255,0.05); padding: 5px;">
                 </div>
                 <div class="form-group" style="display:none;" id="sqlite-path-group">
                     <label>Internal Uploaded Path</label>

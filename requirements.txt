@@ -1,17 +1,9 @@
-langgraph>=0.2.14
-langchain>=0.2.14
-langchain-community>=0.2.12
-litellm>=1.44.0
-pytest>=8.3.2
-requests>=2.32.3
-python-dotenv>=1.0.1
-qdrant-client>=1.10.1
-python-multipart>=0.0.9
-gunicorn>=22.0.0
-langchain-huggingface
-fastapi>=0.112.1
-uvicorn>=0.30.6
-jinja2>=3.1.4
-pydantic>=2.8.2
-sqlalchemy>=2.0.30
-snowflake-sqlalchemy
+# Tested direct dependencies; full resolved environment: requirements.lock.txt
+fastapi==0.162.0
+uvicorn==0.54.0
+python-multipart==0.0.32
+python-dotenv==1.2.4
+sqlalchemy==2.1.6
+sqlglot==30.24.0
+langgraph==1.2.17
+requests==2.34.2

@@ -48,7 +48,7 @@ const init3D = () => {
         renderer.setSize(window.innerWidth, window.innerHeight);
     });
 };
-init3D();
+try { if (typeof THREE !== 'undefined') init3D(); } catch (error) { console.warn('Background animation unavailable.'); }
 
 // --- Splitter Logic ---
 let isResizing = false;
@@ -384,7 +384,7 @@ const saveSettings = async () => {
             localStorage.setItem('db_uri', uri);
             localStorage.setItem('db_type', type);
             updateConnectionStatus();
-            appendMessage('system', `Database (${type}) successfully connected! Schemas indexed into Qdrant. You can now query your data.`);
+            appendMessage('system', `Database (${type}) successfully connected! Schema read successfully. You can now query your data.`);
             fetchSchemaTree();
         } else {
             appendMessage('system', 'Failed to connect: ' + JSON.stringify(data));
@@ -415,7 +415,7 @@ window.uploadSQLiteFile = async (event) => {
         if (data.success) {
             document.getElementById('sqlite-path-group').style.display = 'block';
             document.getElementById('sqlite-path').value = data.db_uri;
-            statusText.innerText = 'Upload Successful! You can now click Save.';
+            statusText.innerText = data.table_name ? `CSV imported: ${data.row_count} rows in table ${data.table_name}. Click Connect & Save.` : 'Upload successful. Click Connect & Save.';
             statusText.style.color = '#22c55e';
         } else {
             statusText.innerText = 'Upload failed: ' + data.detail;
@@ -676,7 +676,7 @@ const renderTable = (rows) => {
             dataCol = headers[1];
         }
         
-        if (labelCol && dataCol) {
+        if (labelCol && dataCol && typeof Chart !== 'undefined') {
             canvas.style.display = 'block';
             
             const labels = rows.map(r => r[labelCol]);

@@ -41,9 +41,14 @@ class VectorStore:
     def __init__(self):
         qdrant_url = os.getenv("QDRANT_URL")
         qdrant_api_key = os.getenv("QDRANT_API_KEY")
+        mode = os.getenv("QDRANT_MODE", "auto").strip().lower()
+        if mode not in {"auto", "memory", "cloud"}:
+            raise ValueError("QDRANT_MODE must be auto, memory, or cloud")
+        if mode == "cloud" and not (qdrant_url and qdrant_api_key):
+            raise ValueError("Cloud mode requires QDRANT_URL and QDRANT_API_KEY")
         
         # Use cloud if credentials exist, otherwise fallback to local memory
-        if qdrant_url and qdrant_api_key:
+        if mode != "memory" and qdrant_url and qdrant_api_key:
             self.client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
         else:
             self.client = QdrantClient(":memory:")
@@ -57,13 +62,18 @@ class VectorStore:
         
         self.vector_size = 384  # Dimension for all-MiniLM-L6-v2
         
-        self._init_collections()
+        try:
+            self._init_collections()
+        except Exception as error:
+            self.client.close()
+            raise RuntimeError(
+                "Qdrant initialization failed. Verify cluster access, or explicitly "
+                "set QDRANT_MODE=memory for an ephemeral local demo. "
+                "Remote data was not replaced by a local store."
+            ) from error
 
     def _init_collections(self):
-        try:
-            collections = [c.name for c in self.client.get_collections().collections]
-        except Exception:
-            collections = []
+        collections = [c.name for c in self.client.get_collections().collections]
             
         if "schema_metadata" not in collections:
             self.client.create_collection(

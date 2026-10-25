@@ -5,6 +5,9 @@ env/
 ENV/
 env.bak/
 venv.bak/
+.venv-mlx/
+models/
+artifacts/
 
 # Python
 __pycache__/
@@ -29,3 +32,8 @@ chinook.db
 # IDEs
 .vscode/
 .idea/
+
+# Backend environment and local secret variants
+.venv-backend/
+.env.*
+!.env.template
