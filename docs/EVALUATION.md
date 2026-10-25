@@ -36,7 +36,7 @@ accuracy or evaluation of the revised LangGraph workflow. The benchmark was insp
 during development; do not call it an independent final test. Result comparisons do
 not test row ordering or prove correctness on all database instances.
 
-Current verification: 50 offline regression tests pass; all 26 reference queries
+Current verification: 52 offline regression tests pass; all 26 reference queries
 validate; one real NVIDIA API-backed run_agent task matched its reference result
 (artifacts/agent_eval/integration_smoke.json). This is a smoke check, not a measured
 full-agent accuracy score. The first complete 30-case API agent evaluation is recorded below. No live deployment is verified by this document.

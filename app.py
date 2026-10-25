@@ -15,6 +15,8 @@ from threading import Lock
 from tools import get_schema_json, database_path
 from settings import ROOT, DATA, UPLOAD_BYTES
 from model_gateway import ModelServiceError, health
+from starter_questions import generate_starter_questions
+from ui_metadata import analysis as analyze_sql, preview as preview_sql
 
 # A reviewed statement is stored server-side and can be executed once within ten minutes.
 # This is a demo review gate, not an authorization boundary for untrusted databases.
@@ -112,6 +114,12 @@ class ChatResponse(BaseModel):
     truncated: bool = False
     model_id: str = "unknown"
     retry_count: int = 0
+    columns: list = []
+    row_count: int = 0
+    chart_type: str = "auto"
+    analysis: dict = {}
+    tables_used: list = []
+    steps: list = []
 
 @app.get("/", response_class=HTMLResponse)
 async def get_root():
@@ -150,6 +158,10 @@ def chat_endpoint(req: ChatRequest):
     """
     try:
         final_state = run_agent(req.query, req.tenant_id, req.db_uri)
+        try:
+            query_analysis = analyze_sql(final_state["sql_query"]) if final_state.get("sql_query") else {}
+        except Exception:
+            query_analysis = {}
         
         approval_id = None
         if final_state.get("requires_approval"):
@@ -176,10 +188,21 @@ def chat_endpoint(req: ChatRequest):
             truncated=final_state.get("truncated", False),
             model_id=final_state.get("model_id", "unknown"),
             retry_count=final_state.get("retry_count", 0),
+            columns=list((final_state.get("execution_result") or [{}])[0]),
+            row_count=len(final_state.get("execution_result") or []),
+            analysis=query_analysis,
+            tables_used=query_analysis.get("tables", []),
+            steps=["Read the database schema and business rules.", "Generated a query or clarification."] +
+                  (["Executed the query and returned database records."] if final_state.get("execution_result") is not None else []),
         )
     except ModelServiceError as e:
+         if e.status_code == 429:
+             raise HTTPException(status_code=429, detail="The model is temporarily rate limited. Please retry in about a minute.", headers={"Retry-After": "60"}) from e
          raise HTTPException(status_code=503, detail=str(e))
-    except Exception:
+    except Exception as e:
+         # Preserve the existing public-demo error contract for older provider adapters.
+         if "429" in str(e) or "quota exceeded" in str(e).lower():
+             raise HTTPException(status_code=429, detail="The model is temporarily rate limited. Please retry in about a minute.", headers={"Retry-After": "60"}) from e
          raise HTTPException(status_code=500, detail="The query could not be completed.")
 
 @app.post("/execute_approved")
@@ -207,6 +230,51 @@ def reject_approved_endpoint(req: ExecuteApprovedRequest):
     if not removed:
         raise HTTPException(status_code=404, detail="Approval expired or already used.")
     return {"success": True}
+
+class RunSQLRequest(BaseModel):
+    sql: str
+    db_uri: str
+    limit: int = 200
+
+
+class PreviewRequest(BaseModel):
+    sql: str
+    db_uri: str
+
+
+@app.post("/starter_questions")
+def starter_questions_endpoint(req: ConnectRequest):
+    schema = get_schema_json(req.db_uri)
+    if not schema["success"]:
+        raise HTTPException(status_code=400, detail=schema["error"])
+    return {"success": True, "questions": generate_starter_questions(schema, limit=6)}
+
+
+@app.post("/run_sql")
+def run_sql_endpoint(req: RunSQLRequest):
+    from tools import classify_sql, execute_sql
+    try:
+        if classify_sql(req.sql) != "read":
+            raise ValueError("Only read queries can run here; data changes require a drafted approval.")
+        result = execute_sql(req.sql, req.db_uri)
+        if not result["success"]:
+            raise ValueError(result["error"])
+        rows = result["result"]
+        cap = max(1, min(req.limit, 1000))
+        return {**result, "result": rows[:cap], "columns": list(rows[0]) if rows else [],
+                "row_count": min(len(rows), cap), "truncated": result.get("truncated", False) or len(rows) > cap}
+    except Exception as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+@app.post("/preview_sql")
+def preview_sql_endpoint(req: PreviewRequest):
+    try:
+        details, impact = preview_sql(req.sql, req.db_uri)
+        return {"success": True, "analysis": details, "preview": impact}
+    except Exception as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
 
 @app.get("/health")
 def health_endpoint():

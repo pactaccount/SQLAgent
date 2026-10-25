@@ -117,7 +117,7 @@ as unsuccessful end-to-end tasks.
 
 | Area | Files | Responsibility and present status |
 | --- | --- | --- |
-| Web application | app.py, static/ | Interface and API with direct schema inspection; approvals remain process-local. |
+| Web application | app.py, static/js/, static/css/ | Interface and API with direct schema inspection; approvals remain process-local. |
 | Agent | agent.py | Single-model LangGraph workflow; covered by offline and one real API smoke test. |
 | CSV ingestion | csv_import.py | Streaming CSV validation, type inference and conversion to a queryable SQLite table. |
 | Database operations | tools.py | Revised SQLite schema, parsing and bounded execution. |
@@ -128,7 +128,7 @@ as unsuccessful end-to-end tasks.
 | Evaluation | eval/ | Actual-agent API evaluation, historical local baseline, references and human review. |
 | Question sets | business_questions.md, final_holdout_questions.md | Initial cases and reserved final cases. |
 | Local experiments | scripts/prepare_local_model.py, scripts/serve_model.py | Download/smoke test and local inference; optional for final product. |
-| Verification | tests/ | 50 isolated offline tests covering graph, API, SQL controls, provider and scoring. |
+| Verification | tests/ | 52 isolated offline tests covering graph, API, SQL controls, provider and scoring. |
 | Packaging | requirements.txt, Dockerfile, ignore files | Locked tested backend dependencies; no local models or environments in container context. |
 | Data/evidence | olist.sqlite, chinook.db, models/, artifacts/ | Local inputs and outputs; not application source or Git deliverables. |
 

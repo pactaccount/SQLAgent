@@ -9,7 +9,7 @@ execution, clarification, and bounded error recovery. An evaluation framework
 compares generated-query results with reference results. The initial local-model
 benchmark matched 10 of 26 answerable cases after a reference correction. This
 small fixed-schema result establishes a baseline, not deployed agent performance.
-The API-backed agent has passed 50 offline tests and a one-question real API smoke test. Model training and model routing
+The API-backed agent has passed 52 offline tests and a one-question real API smoke test. Model training and model routing
 are outside the agreed project scope.
 
 ## I. Introduction

@@ -61,8 +61,8 @@ that file records the tested complete dependency set, including test dependencie
 
 ## CSV uploads
 
-Choose **SQLite / CSV (My Computer)**, upload a UTF-8 comma-separated file with a
-header row, then click **Connect & Save**. Each CSV becomes one SQLite table named
+Choose **A database file on my computer**, upload a UTF-8 comma-separated file with a
+header row, then continue and click **Connect**. Each CSV becomes one SQLite table named
 after the filename; the upload message shows the table name and row count. Numeric
 columns are inferred, leading-zero identifiers remain text, and empty cells become
 NULL. Duplicate/empty headers, inconsistent field counts and malformed CSV are
@@ -76,7 +76,7 @@ persistent hosting storage. Re-upload when needed. No model files are included.
 
 ## Verification and limits
 
-50 offline tests passed, 26 reference queries validated, and one real API-backed
+52 offline tests and 97 interface smoke checks passed, 26 reference queries validated, and one real API-backed
 agent question matched its reference result. This smoke test is not an accuracy
 benchmark. The previous local Qwen baseline scored **10/26 (38.5%)** after an audited
 reference correction; it is a different model and evaluation path.
@@ -104,3 +104,5 @@ under `archive/legacy/` and excluded from the active tests and container.
 - [Database provenance](DATABASE_SOURCE.md)
 - [Initial questions](business_questions.md)
 - [Reserved final questions](final_holdout_questions.md)
+
+Code is MIT licensed; dataset licenses remain separate. The updated modular interface and existing tab behavior are retained from the newer GitHub changes.

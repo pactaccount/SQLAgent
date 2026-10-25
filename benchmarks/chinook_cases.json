@@ -1,0 +1,11 @@
+[
+  {"id":"artist_count","question":"How many artists are in the database?","reference_sql":"SELECT COUNT(*) FROM Artist"},
+  {"id":"album_count","question":"How many albums are in the database?","reference_sql":"SELECT COUNT(*) FROM Album"},
+  {"id":"rock_track_count","question":"How many tracks belong to the Rock genre?","reference_sql":"SELECT COUNT(*) FROM Track t JOIN Genre g ON t.GenreId = g.GenreId WHERE g.Name = 'Rock'"},
+  {"id":"track_album","question":"What is the album title for the track Fast As a Shark?","reference_sql":"SELECT al.Title FROM Album al JOIN Track t ON t.AlbumId = al.AlbumId WHERE t.Name = 'Fast As a Shark'"},
+  {"id":"invoices_2024","question":"How many invoices were issued in 2024?","reference_sql":"SELECT COUNT(*) FROM Invoice WHERE substr(InvoiceDate,1,4) = '2024'"},
+  {"id":"genre_count","question":"How many distinct genres are in the Genre table?","reference_sql":"SELECT COUNT(*) FROM Genre"},
+  {"id":"top_album_artist","question":"Which artist has the most albums? Return the artist name and album count.","reference_sql":"SELECT ar.Name, COUNT(*) AS n FROM Artist ar JOIN Album al ON al.ArtistId = ar.ArtistId GROUP BY ar.ArtistId ORDER BY n DESC, ar.Name ASC LIMIT 1"},
+  {"id":"invoice_revenue","question":"What is the total invoice revenue, rounded to two decimal places?","reference_sql":"SELECT ROUND(SUM(Total),2) FROM Invoice"},
+  {"id":"top_customer_country","question":"Which country has the most customers? Return the country and number of customers.","reference_sql":"SELECT Country, COUNT(*) AS n FROM Customer GROUP BY Country ORDER BY n DESC, Country ASC LIMIT 1"}
+]
