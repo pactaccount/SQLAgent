@@ -1,0 +1,436 @@
+{
+  "note": "Sanitized summaries; full local reports are preserved under ignored artifacts/. No new model calls were made during cleanup.",
+  "runs": [
+    {
+      "source_report": "artifacts/agent_eval/20261025T001958643246Z.json",
+      "source_report_sha256": "a93c76f071410e323ac7feb2529d256c2fa3c049fecb0c4bb1e24e7906c718ce",
+      "suite": "development",
+      "prompt_version": "sqlite-v2",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "summary": {
+        "completed": 30,
+        "planned": 30,
+        "complete": true,
+        "sql_tasks": 26,
+        "correct_results": 12,
+        "result_accuracy": 0.46153846153846156,
+        "successful_executions": 26,
+        "execution_success_rate": 1.0,
+        "provider_errors": 0,
+        "system_errors": 0,
+        "clarification_cases": 4,
+        "clarifications_pending_review": 4,
+        "median_seconds": 1.3888964995276183,
+        "p95_seconds_nearest_rank": 6.335494832950644
+      },
+      "case_outcomes": [
+        {
+          "id": "Q01",
+          "status": "correct",
+          "retry_count": 0
+        },
+        {
+          "id": "Q02",
+          "status": "incorrect_result",
+          "retry_count": 0
+        },
+        {
+          "id": "Q03",
+          "status": "correct",
+          "retry_count": 0
+        },
+        {
+          "id": "Q04",
+          "status": "correct",
+          "retry_count": 0
+        },
+        {
+          "id": "Q05",
+          "status": "correct",
+          "retry_count": 0
+        },
+        {
+          "id": "Q06",
+          "status": "correct",
+          "retry_count": 0
+        },
+        {
+          "id": "Q07",
+          "status": "correct",
+          "retry_count": 0
+        },
+        {
+          "id": "Q08",
+          "status": "correct",
+          "retry_count": 0
+        },
+        {
+          "id": "Q09",
+          "status": "correct",
+          "retry_count": 1
+        },
+        {
+          "id": "Q10",
+          "status": "correct",
+          "retry_count": 0
+        },
+        {
+          "id": "Q11",
+          "status": "incorrect_result",
+          "retry_count": 0
+        },
+        {
+          "id": "Q12",
+          "status": "correct",
+          "retry_count": 0
+        },
+        {
+          "id": "Q13",
+          "status": "incorrect_result",
+          "retry_count": 0
+        },
+        {
+          "id": "Q14",
+          "status": "correct",
+          "retry_count": 1
+        },
+        {
+          "id": "Q15",
+          "status": "incorrect_result",
+          "retry_count": 0
+        },
+        {
+          "id": "Q16",
+          "status": "incorrect_result",
+          "retry_count": 0
+        },
+        {
+          "id": "Q17",
+          "status": "incorrect_result",
+          "retry_count": 0
+        },
+        {
+          "id": "Q18",
+          "status": "correct",
+          "retry_count": 0
+        },
+        {
+          "id": "Q19",
+          "status": "incorrect_result",
+          "retry_count": 0
+        },
+        {
+          "id": "Q20",
+          "status": "incorrect_result",
+          "retry_count": 0
+        },
+        {
+          "id": "Q21",
+          "status": "incorrect_result",
+          "retry_count": 0
+        },
+        {
+          "id": "Q22",
+          "status": "incorrect_result",
+          "retry_count": 1
+        },
+        {
+          "id": "Q23",
+          "status": "incorrect_result",
+          "retry_count": 0
+        },
+        {
+          "id": "Q24",
+          "status": "incorrect_result",
+          "retry_count": 0
+        },
+        {
+          "id": "Q25",
+          "status": "incorrect_result",
+          "retry_count": 1
+        },
+        {
+          "id": "Q26",
+          "status": "incorrect_result",
+          "retry_count": 0
+        },
+        {
+          "id": "Q27",
+          "status": "needs_human_review",
+          "retry_count": 0
+        },
+        {
+          "id": "Q28",
+          "status": "needs_human_review",
+          "retry_count": 0
+        },
+        {
+          "id": "Q29",
+          "status": "needs_human_review",
+          "retry_count": 0
+        },
+        {
+          "id": "Q30",
+          "status": "needs_human_review",
+          "retry_count": 0
+        }
+      ]
+    },
+    {
+      "source_report": "artifacts/agent_eval/20261025T002723353395Z.json",
+      "source_report_sha256": "42a7fcc62fc5d3f3ed6950c8ebb05a10de99da324b672acbfda95f4e67efc99d",
+      "suite": "development",
+      "prompt_version": "sqlite-v3",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "summary": {
+        "completed": 30,
+        "planned": 30,
+        "complete": true,
+        "sql_tasks": 26,
+        "correct_results": 19,
+        "result_accuracy": 0.7307692307692307,
+        "successful_executions": 25,
+        "execution_success_rate": 0.9615384615384616,
+        "provider_errors": 0,
+        "system_errors": 0,
+        "clarification_cases": 4,
+        "clarifications_pending_review": 2,
+        "median_seconds": 1.222928375005722,
+        "p95_seconds_nearest_rank": 3.6149207920534536
+      },
+      "case_outcomes": [
+        {
+          "id": "Q01",
+          "status": "correct",
+          "retry_count": 0
+        },
+        {
+          "id": "Q02",
+          "status": "correct",
+          "retry_count": 0
+        },
+        {
+          "id": "Q03",
+          "status": "correct",
+          "retry_count": 0
+        },
+        {
+          "id": "Q04",
+          "status": "correct",
+          "retry_count": 0
+        },
+        {
+          "id": "Q05",
+          "status": "correct",
+          "retry_count": 0
+        },
+        {
+          "id": "Q06",
+          "status": "correct",
+          "retry_count": 0
+        },
+        {
+          "id": "Q07",
+          "status": "correct",
+          "retry_count": 0
+        },
+        {
+          "id": "Q08",
+          "status": "correct",
+          "retry_count": 0
+        },
+        {
+          "id": "Q09",
+          "status": "correct",
+          "retry_count": 0
+        },
+        {
+          "id": "Q10",
+          "status": "correct",
+          "retry_count": 0
+        },
+        {
+          "id": "Q11",
+          "status": "incorrect_result",
+          "retry_count": 0
+        },
+        {
+          "id": "Q12",
+          "status": "incorrect_result",
+          "retry_count": 0
+        },
+        {
+          "id": "Q13",
+          "status": "correct",
+          "retry_count": 0
+        },
+        {
+          "id": "Q14",
+          "status": "correct",
+          "retry_count": 0
+        },
+        {
+          "id": "Q15",
+          "status": "correct",
+          "retry_count": 0
+        },
+        {
+          "id": "Q16",
+          "status": "correct",
+          "retry_count": 0
+        },
+        {
+          "id": "Q17",
+          "status": "incorrect_result",
+          "retry_count": 1
+        },
+        {
+          "id": "Q18",
+          "status": "correct",
+          "retry_count": 0
+        },
+        {
+          "id": "Q19",
+          "status": "correct",
+          "retry_count": 1
+        },
+        {
+          "id": "Q20",
+          "status": "correct",
+          "retry_count": 0
+        },
+        {
+          "id": "Q21",
+          "status": "incorrect_result",
+          "retry_count": 0
+        },
+        {
+          "id": "Q22",
+          "status": "incorrect_result",
+          "retry_count": 0
+        },
+        {
+          "id": "Q23",
+          "status": "incorrect_result",
+          "retry_count": 0
+        },
+        {
+          "id": "Q24",
+          "status": "clarified_answerable",
+          "retry_count": 1
+        },
+        {
+          "id": "Q25",
+          "status": "correct",
+          "retry_count": 0
+        },
+        {
+          "id": "Q26",
+          "status": "correct",
+          "retry_count": 0
+        },
+        {
+          "id": "Q27",
+          "status": "incorrect_action",
+          "retry_count": 0
+        },
+        {
+          "id": "Q28",
+          "status": "needs_human_review",
+          "retry_count": 0
+        },
+        {
+          "id": "Q29",
+          "status": "incorrect_action",
+          "retry_count": 0
+        },
+        {
+          "id": "Q30",
+          "status": "needs_human_review",
+          "retry_count": 0
+        }
+      ]
+    },
+    {
+      "source_report": "artifacts/agent_eval/20261025T004054514762Z.json",
+      "source_report_sha256": "e989885542f0b2c26939126fb93625c71c5cf84e7dcf8cf9d18726f206836643",
+      "suite": "holdout",
+      "prompt_version": "sqlite-v3",
+      "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+      "summary": {
+        "completed": 10,
+        "planned": 10,
+        "complete": true,
+        "sql_tasks": 8,
+        "correct_results": 3,
+        "result_accuracy": 0.375,
+        "successful_executions": 6,
+        "execution_success_rate": 0.75,
+        "provider_errors": 0,
+        "system_errors": 0,
+        "clarification_cases": 2,
+        "clarifications_pending_review": 1,
+        "median_seconds": 1.996172729472164,
+        "p95_seconds_nearest_rank": 34.317674125079066
+      },
+      "case_outcomes": [
+        {
+          "id": "H01",
+          "status": "incorrect_result",
+          "retry_count": 0
+        },
+        {
+          "id": "H02",
+          "status": "correct",
+          "retry_count": 0
+        },
+        {
+          "id": "H03",
+          "status": "correct",
+          "retry_count": 0
+        },
+        {
+          "id": "H04",
+          "status": "incorrect_result",
+          "retry_count": 0
+        },
+        {
+          "id": "H05",
+          "status": "correct",
+          "retry_count": 0
+        },
+        {
+          "id": "H06",
+          "status": "clarified_answerable",
+          "retry_count": 2
+        },
+        {
+          "id": "H07",
+          "status": "execution_failed",
+          "retry_count": 3
+        },
+        {
+          "id": "H08",
+          "status": "incorrect_result",
+          "retry_count": 0
+        },
+        {
+          "id": "H09",
+          "status": "incorrect_action",
+          "retry_count": 0
+        },
+        {
+          "id": "H10",
+          "status": "needs_human_review",
+          "retry_count": 0
+        }
+      ]
+    }
+  ],
+  "human_review_first_development": {
+    "Q27": "pass",
+    "Q28": "pass",
+    "Q29": "pass",
+    "Q30": "partial"
+  }
+}

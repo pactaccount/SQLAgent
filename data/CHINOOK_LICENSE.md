@@ -1,6 +1,6 @@
 # Chinook sample database notice
 
-`chinook.db` is based on the [Chinook sample database](https://github.com/lerocha/chinook-database), distributed under the following MIT license.
+`data/chinook.db` is based on the [Chinook sample database](https://github.com/lerocha/chinook-database), distributed under the following MIT license.
 
 Copyright (c) 2008-2024 Luis Rocha
 

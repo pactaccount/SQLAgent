@@ -1,108 +1,116 @@
-# SeaQL — Text-to-SQL Agent Evaluation
+# SeaQL
 
-SeaQL turns questions about a SQLite database into SQL and actual result tables.
-It is intended for analysts and operations staff who understand their business
-questions but do not want to write every query manually. Its evaluation framework
-measures whether results are correct, rather than treating executable SQL as correct.
+**A text-to-SQL agent with execution-based evaluation for SQLite and CSV data.**
+
+SeaQL helps analysts and operations staff ask business questions without manually
+writing every query. It shows the generated SQL, actual database results and any
+clarification or execution failure. Its evaluation framework distinguishes a query
+that runs from one that returns the required answer.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    U[Question] --> A[SQL agent]
-    S[Schema and business rules] --> A
-    A <--> M[One NVIDIA API model]
-    A <--> D[(SQLite database)]
-    A --> R[SQL and result table]
-    R --> E[Compare with reference results]
-    E --> P[Evaluation report]
+    U[User question] --> A[SQL agent]
+    A <--> M[One model API]
+    A <--> D[(Database)]
+    A --> R[SQL and results]
+    R --> E[Evaluation against reference results]
 ```
 
-FastAPI calls the LangGraph agent. The agent reads schema directly, supplies explicit
-business rules, and asks one configured model for SQL or clarification. Parsed read
-queries execute through read-only SQLite connections with time and row limits.
-Failures can trigger up to three failed attempts. Final answers format actual values;
-no second model is needed for summarization. Qdrant, embeddings, model weights and
-GPUs are not required by this application path. Caching is disabled.
+The FastAPI application uses a LangGraph workflow, direct schema inspection, shared
+business rules, one NVIDIA-hosted model, SQL parsing and bounded SQLite execution.
+CSV uploads become queryable SQLite tables. No model weights, Qdrant or GPU are
+required by the web application. Caching is disabled.
 
-## Run the agent evaluation
+## Run locally
 
-The prepared `.venv-backend` and root `olist.sqlite` are required. Configure the
-existing `NVIDIA_API_KEY` in `.env`; `.env.template` lists optional settings.
+Python 3.12 is the supported deployment version. For a fresh installation:
 
 ```bash
-.venv-backend/bin/python eval/run_agent_eval.py
+python3.12 -m venv .venv-backend
+.venv-backend/bin/python -m pip install -r requirements.lock.txt
+cp .env.template .env
 ```
 
-This intentionally calls the model API using the same `run_agent` entry point as
-`/chat`. It evaluates 26 SQL questions and four clarification cases. Reports save
-after every case under `artifacts/agent_eval/`, with a new timestamped filename.
-Provider failure stops the run and marks it incomplete. Clarification and unsupported
-business assumptions require review; they are not automatically awarded correctness.
-The ten reserved final questions are not used in this run.
-
-No-cost checks:
-
-```bash
-.venv-backend/bin/python -m pytest -q
-.venv-backend/bin/python eval/run_agent_eval.py --validate-only
-```
-
-Run the web application:
+Set `NVIDIA_API_KEY` in `.env` without committing it. Then run:
 
 ```bash
 .venv-backend/bin/python -m uvicorn app:app --host 127.0.0.1 --port 8000
 ```
 
-Use `sqlite:///olist.sqlite` as the database selection. No file upload is needed.
-The API key stays on the server. `/health` reports configuration without making a
-model call. For a fresh Python 3.12 environment, install `requirements.lock.txt`;
-that file records the tested complete dependency set, including test dependencies.
+Open `http://127.0.0.1:8000`. Choose **A database file on my computer**, upload a CSV
+or SQLite file, then continue and connect. The bundled sample is `data/chinook.db`.
+The local Olist evaluation database remains `olist.sqlite` at the repository root;
+it is not distributed with the source.
 
-## CSV uploads
+## Evaluate
 
-Choose **A database file on my computer**, upload a UTF-8 comma-separated file with a
-header row, then continue and click **Connect**. Each CSV becomes one SQLite table named
-after the filename; the upload message shows the table name and row count. Numeric
-columns are inferred, leading-zero identifiers remain text, and empty cells become
-NULL. Duplicate/empty headers, inconsistent field counts and malformed CSV are
-rejected. The streaming importer supports up to 200 columns and 1,000,000 rows,
-subject to the configured upload-byte limit. It uses only Python's standard library.
-CSV queries use generic schema rules; Olist-specific rules remain for the Olist schema.
+These commands intentionally call the configured external model and consume its quota:
 
-This support is included in the standard Docker deployment. On Render Free, uploaded
-files still disappear on service restart/spin-down/redeploy; CSV support does not add
-persistent hosting storage. Re-upload when needed. No model files are included.
+```bash
+.venv-backend/bin/python eval/run_agent_eval.py
+.venv-backend/bin/python eval/run_agent_eval.py --suite holdout
+```
 
-## Verification and limits
+Each case calls the same agent as the web API. Reports are saved after every case
+to new files under `artifacts/agent_eval/`. The reserved suite has already been run;
+keep its first result rather than repeatedly tuning against it.
 
-52 offline tests and 97 interface smoke checks passed, 26 reference queries validated, and one real API-backed
-agent question matched its reference result. This smoke test is not an accuracy
-benchmark. The previous local Qwen baseline scored **10/26 (38.5%)** after an audited
-reference correction; it is a different model and evaluation path.
+Offline verification requires no model calls:
 
-The agent evaluator measures application workflow latency, not hosted browser/HTTP
-latency. This checkout has not been verified as a live deployment. It remains a
-controlled demonstration: no user authentication or database allowlist is implemented,
-connections are caller-supplied, browser tab state needs further isolation, and write
-approvals are process-local. Use trusted databases and private access. The source
-Olist database is protected from writes through the executor. Uploaded files must
-be validated SQLite and fit the configurable size limit. Runtime files on a free
-host may be ephemeral; persistent hosting remains a separate unverified step.
+```bash
+.venv-backend/bin/python -m pytest -q
+node tests/ui_smoke.js
+.venv-backend/bin/python eval/run_agent_eval.py --validate-only
+```
 
-Model training, fine-tuning, specialist model routing and automatic learning are
-outside scope. Optional local-model scripts remain for reproducing the original
-experiment. Old Qdrant, Snowflake and unused persistence experiments are preserved
-under `archive/legacy/` and excluded from the active tests and container.
+## Results
+
+| Measurement | Result | Interpretation |
+| --- | --- | --- |
+| First agent development run | 12/26 correct, 46.2% | Baseline on development questions |
+| Revised development run | 19/26 correct, 73.1% | +26.9 percentage points; one SQL case and clarification behavior regressed |
+| Reserved final SQL tasks | 3/8 correct, 37.5% | Limited generalization on new tasks in the same database |
+| Offline verification | 54 backend tests; 97 interface checks | Software checks, not model-accuracy measurements |
+
+SQL execution succeeded on 25/26 revised development cases and 6/8 reserved SQL
+cases. Neither execution success nor the development score establishes reliable
+business answers. [Full methodology and results](docs/EVALUATION.md) explain the
+strict result comparison, clarification review and failure categories.
+
+## Repository
+
+```text
+app.py                     Render-compatible ASGI entry point
+seaql/                     Application, agent, model, ingestion and database components
+static/                    Modular browser interface, charts and result grid
+eval/                     Datasets, reference queries, comparator and agent evaluator
+tests/                    Offline backend tests and interface checks
+data/                     Licensed sample database
+docs/                     Technical report, evaluation and dataset provenance
+```
+
+## Deployment and limits
+
+Render can build the repository Dockerfile or run `uvicorn app:app --host 0.0.0.0
+--port $PORT` after installing the locked requirements. Set the NVIDIA key in the
+hosting service's environment settings. Uploads on free ephemeral hosting disappear
+on restart or redeployment; reconnect after re-uploading. A Docker build and current
+hosted release have not been verified by the local test suite.
+
+The application is an organized, tested demonstration, not a fully hardened shared
+service. It has no authenticated user isolation or database allowlist. Approval
+state is process-local. Use trusted data and restricted access. External models
+receive questions and schema context. Do not use confidential data without an
+appropriate provider agreement. No custom model training, model routing, autonomous
+learning or comprehensive hallucination-rate claim is made.
 
 ## Documentation
 
-- [System definition, users, processing and structure](docs/SYSTEM_OVERVIEW.md)
-- [IEEE-style technical description](IEEE_Documentation.md)
-- [Evaluation protocol](eval/README.md)
-- [Evaluation results and limitations](docs/EVALUATION.md)
-- [Database provenance](DATABASE_SOURCE.md)
-- [Initial questions](business_questions.md)
-- [Reserved final questions](final_holdout_questions.md)
+- [Technical report: purpose, components, workflow, design and deployment](docs/TECHNICAL_REPORT.md)
+- [Evaluation protocol, results and limitations](docs/EVALUATION.md)
+- [Datasets and licensing](docs/DATASETS.md)
 
-Code is MIT licensed; dataset licenses remain separate. The updated modular interface and existing tab behavior are retained from the newer GitHub changes.
+Application code is MIT licensed. Dataset rights are separate; the bundled sample
+notice is in [data/CHINOOK_LICENSE.md](data/CHINOOK_LICENSE.md).

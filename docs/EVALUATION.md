@@ -1,127 +1,176 @@
-# SeaQL — evaluation results and limitations
+# Evaluation protocol and measured results
 
-## Project claim
+## Objective
 
-A text-to-SQL prototype with execution-based evaluation: questions are translated
-into SQL, actual results are compared against references, and failures and
-clarification behavior are recorded. Fine-tuning, model routing and autonomous
-learning are outside the agreed scope.
+Measure whether a text-to-SQL agent returns the required database result. SQL that
+executes is not automatically correct. Keep correctness, execution reliability,
+clarification completeness and provider availability separate.
 
-## Existing measurements
+## Completed runs
 
-- Direct local-model benchmark: 30 cases completed, including 26 answerable SQL tasks
-  and four clarification cases.
-- Model: pinned four-bit Qwen2.5-Coder-7B-Instruct through MLX on the local Mac.
-- Original saved report: 9/26 SQL tasks matched its original references.
-- Audited score: **10/26 (38.5%)** after Q05's reference projection was corrected.
-  The generated output was not changed; original and audited records are preserved.
-- Clarification review: Q27 fail, Q28 partial, Q29 partial, Q30 fail. Do not count
-  partials as fully correct or report a complete hallucination-rate measurement.
-- Ten additional questions are reserved from training and tuning, but have not
-  produced a final evaluated score.
+| Run | Correct SQL results | Final SQL execution | Median task time | p95 task time |
+| --- | --- | --- | --- | --- |
+| API agent, initial development instructions | 12/26, 46.2% | 26/26, 100% | 1.39 s | 6.34 s |
+| API agent, revised instructions | 19/26, 73.1% | 25/26, 96.2% | 1.22 s | 3.61 s |
+| Revised agent, reserved final tasks | 3/8, 37.5% | 6/8, 75% | 2.00 s | 34.32 s |
 
-Local evidence paths (ignored artifacts may not exist in a fresh clone):
+All complete runs used the configured NVIDIA model and recorded no provider or
+system errors. Development runs completed 26 SQL tasks plus four ambiguity tasks;
+the final run completed eight SQL tasks plus two ambiguity tasks. Report latency
+covers a local invocation of the real agent, including provider latency and repairs,
+not hosted HTTP, browser rendering or Render cold starts. p95 uses nearest rank;
+with ten final tasks it equals the slowest task. These are single runs on small
+samples, not stable performance estimates.
 
-- artifacts/setup/model_manifest.json
-- artifacts/setup/inference_smoke.json
-- artifacts/baseline/base.json
-- artifacts/baseline/reference_audit.json
-- eval/clarification_review.md
-- final_holdout_questions.md
+The revised development run gained 26.9 percentage points: eight SQL cases improved
+and one regressed (delivery duration). Two ambiguity cases also regressed from
+clarification to assumed queries. A higher aggregate SQL score did not mean every
+behavior improved. Revised instructions were informed by development failures;
+the score is therefore a development-set result, not an independent final result.
+
+## Clarification review
+
+In the first API development run, all four ambiguity cases requested clarification.
+The user rated best-seller metric/time scope, churn definition/time scope and bad-order
+criteria/reference period as pass, and electronics profitability as partial because
+subcategory clarification was missing. That is three complete passes and one partial,
+not four fully correct responses.
+
+In the revised development run, only Q28 and Q30 requested clarification. Q27 and
+Q29 executed assumed interpretations. Do not reuse the previous run's human ratings
+for these new outputs. In the final set, H09 executed an undefined highest-tier
+interpretation; H10 requested VIP, inactivity and time definitions. H10 completeness
+remains awaiting explicit human review. Clarification selection and quality are
+separate from SQL-task accuracy.
+
+## Final task outcomes
+
+| Task | Topic | Recorded outcome |
+| --- | --- | --- |
+| H01 | Interstate fulfillment percentage | Incorrect result |
+| H02 | Lead qualification-to-close duration | Correct |
+| H03 | Recorded review-answer timestamp interval | Correct |
+| H04 | Product volume and freight per liter | Incorrect result |
+| H05 | Split-payment cohorts and payment totals | Correct |
+| H06 | Seller close-to-first-sale interval | Unnecessary clarification on an answerable task |
+| H07 | Weekday order volume and basket value | Execution failed |
+| H08 | Early-delivery calendar-day buffer | Incorrect result |
+| H09 | Undefined highest-tier acquisition channel | Assumed a metric and executed SQL |
+| H10 | Undefined dormant VIP customers | Requested clarification; completeness unreviewed |
+
+The final set introduces new analytical tasks on the same Olist schema. It is not
+cross-schema evaluation. Task topics were inspected to construct references, but
+model outputs from these tasks were not used to tune the frozen candidate before
+its first final run. Explicit output and aggregation contracts resolved ambiguities
+before execution. Do not repeatedly tune against this set and still call it untouched.
+
+## Evaluation architecture
+
+`eval/run_agent_eval.py` invokes `seaql.agent.run_agent`, the same entry point used
+by the web API. It does not substitute a simpler query generator. Each case starts
+with fresh state and no conversation history or cache. References execute independently
+through `eval/comparison.py`. Expected SQL and result rows are never passed to the
+model. The task and contract are visible inputs; reference answers are not.
+
+`eval/olist_cases.py` contains development reference queries and reads original
+questions from `eval/datasets/development.md`. Agent-v2 explicitly requests Q05's
+product_id/price output and defines Q24 as positive review rows divided by review
+rows in each customer cohort. `eval/holdout_cases.py` contains final references and
+contracts, reading original questions from `eval/datasets/holdout.md`.
+
+Full local reports remain under ignored `artifacts/agent_eval/`. Sanitized summaries
+and case statuses are published in [summary.json](../eval/results/summary.json),
+including hashes of source reports. Summaries are not replacements for raw traces;
+reproducing a run requires the database, configured API and stated code version.
+Raw outputs are excluded to avoid publishing user records by default.
+
+## Metrics and comparison contract
+
+**Result accuracy** is reference-matching final results divided by all completed
+answerable tasks. Failed generations, provider failures, unnecessary clarification
+and failed execution do not disappear from the denominator. Incomplete runs are
+marked as such and must not be presented as a completed suite.
+
+**Execution success** means final execution returned rows, including an empty result
+or a truncated table. It does not imply correctness. A truncated result cannot pass
+strict correctness even when the returned prefix matches reference rows.
+
+The comparator preserves duplicate rows and column order, ignores row order and
+requires matching nonnumeric values. Numeric relative tolerance is 1e-5, with absolute
+tolerance 0.005. It does not normalize alternative cohort labels, rearrange output
+columns or discard extra fields. Thus extra diagnostic columns can fail the output
+contract even if the requested calculation appears among them. Sorting correctness
+is not measured. Equivalence on one database instance does not prove SQL equivalence
+on all possible databases.
+
+Clarification actions require a separate completeness review. Schema-reference error
+labels identify SQLite errors for absent tables or columns, including intermediate
+attempts. They are not a comprehensive hallucination metric. Unsupported assumptions,
+such as choosing a definition of best or treating revenue as profit, need explicit
+human labels. No overall hallucination rate is established by these runs.
+
+## Reference semantics
+
+Commercial item sales use delivered orders unless a different scope is requested.
+Explicit all-order counts, catalog, payment, review, first-purchase and lifetime
+cohort tasks retain their stated scope. Unique buyer identity uses customer_unique_id;
+customer_id is the join key. Late/early delivery compares calendar dates. Payment
+and category review averages first aggregate reviews per order and avoid multiplying
+weight through line-item/payment joins. Categories prefer translated English names,
+then Portuguese, then unknown. Zero installments are excluded from the four named
+installment brackets. Missing numeric values remain NULL and zero denominators use
+NULLIF. First-month growth has no preceding value unless explicitly requested.
+
+Final contracts specify order-level interstate fulfillment, equally weighted product
+volume summaries, payment cohorts, per-seller first delivered sale, numeric weekdays,
+and calendar-day early-delivery buffers. Reference queries have been executed;
+that establishes runnable queries, not independent expert review of every semantic
+choice. Data and reference versions must remain fixed for candidate comparisons.
+
+## Reporting and failure behavior
+
+Reports record observed model IDs, prompt version, policy/data/source hashes, task
+questions, raw model attempts, generated SQL, results, errors, retries and timings.
+Files use new timestamped names and save atomically after each case. Existing reports
+are not overwritten. A provider error stops the suite rather than spending requests
+on the remaining tasks and leaves an incomplete report.
+
+The reference executor is read-only, capped at 10,000 rows and 20 seconds. Application
+execution defaults to 1,000 rows and ten seconds. Different limits are documented and
+truncation cannot be mistaken for accuracy. No token-cost metric is reported because
+the current gateway does not retain provider token usage.
+
+## Reproduction
+
+With Python 3.12, locked requirements, the local Olist database and NVIDIA key:
+
+```bash
+# No inference calls: reference execution checks.
+.venv-backend/bin/python eval/run_agent_eval.py --validate-only
+.venv-backend/bin/python eval/run_agent_eval.py --suite holdout --validate-only
+
+# Calls the model API and consumes provider quota.
+.venv-backend/bin/python eval/run_agent_eval.py
+.venv-backend/bin/python eval/run_agent_eval.py --suite holdout
+```
+
+The final suite has already been measured; another run is unnecessary for repository
+cleanup. If repeated for a deliberate experiment, label it as a repeat and retain
+the first result. The source/package reorganization changes code hashes but does
+not establish a new model-accuracy measurement.
+
+## Historical local-model experiment
+
+An earlier direct MLX/Qwen model run, separate from this application agent, matched
+10/26 tasks (38.5%) after a correction to Q05's reference projection. The original
+saved report contains 9/26. Its outputs and audited correction are preserved locally.
+The model, instructions and path differ from the API agent, so differences cannot
+be attributed solely to orchestration. Local-model experiment files are not part
+of the distributed application or its dependencies.
 
 ## Interpretation
 
-This is a small fixed-schema baseline of the local model, not deployed application
-accuracy or evaluation of the revised LangGraph workflow. The benchmark was inspected
-during development; do not call it an independent final test. Result comparisons do
-not test row ordering or prove correctness on all database instances.
-
-Current verification: 52 offline regression tests pass; all 26 reference queries
-validate; one real NVIDIA API-backed run_agent task matched its reference result
-(artifacts/agent_eval/integration_smoke.json). This is a smoke check, not a measured
-full-agent accuracy score. The first complete 30-case API agent evaluation is recorded below. No live deployment is verified by this document.
-
-## Current safe wording
-
-“Built a text-to-SQL prototype and execution-based evaluation harness; measured
-38.5% result accuracy on a 26-question Olist local-model baseline and reviewed
-clarification failures.”
-
-For a short description without the baseline number:
-
-“Developed a text-to-SQL prototype with reference-result evaluation and per-question
-records of incorrect results, execution errors and clarification behavior.”
-
-## Completion evidence still required
-
-An evaluator invoking the real application agent, passing repaired regression tests,
-frozen final reference answers, a final per-case report, and a demonstrated hosted
-question-to-result workflow. Update wording only after those checks are complete.
-
-## First complete API-backed agent evaluation
-
-Report: `artifacts/agent_eval/20261025T001958643246Z.json`.
-
-- Completed all 30 cases with no provider or system errors.
-- Strict final-result correctness: **12/26 (46.2%)**.
-- Successful final SQL execution: **26/26 (100%)**, including incorrect and truncated results.
-- Four of four ambiguity cases returned clarification. User review: three pass, one partial (Q30), or 75% fully correct clarification responses.
-- Median task latency: **1.39 seconds**; nearest-rank p95: **6.34 seconds**.
-- Four answerable cases required repair attempts (Q09, Q14, Q22, Q25). Q09 and
-  Q14 finished correct; Q22 and Q25 executed but failed strict result comparison.
-
-Common failures include customer-key confusion, omitted delivered-order filtering,
-calendar-date comparisons, aggregation grain, top-N scope and unwanted output
-columns. Q22 contains the correct growth values but includes an extra revenue
-column, so its strict output contract fails. Q16 returns grouped counts instead of
-a scalar and reaches the row limit. No overall hallucination rate is established.
-
-This is the application agent invoked locally through the NVIDIA API, not a hosted
-HTTP/browser benchmark. It is not directly comparable to the local Qwen baseline:
-the model, prompt, benchmark wording and workflow differ. Preserve it before changes.
-
-## Development candidate: sqlite-v3
-
-The reviewed first agent run remains unchanged. Its separate `.review.json` records
-user ratings Q27 pass, Q28 pass, Q29 pass, Q30 partial.
-
-The next development candidate strengthens shared business-rule instructions for
-join keys, first purchases/cohorts, aggregation grain, date comparisons, status scope,
-category translation, requested output fields and clarification completeness. A
-final-generation checklist applies these rules using the same model and one call
-per attempt. No reference SQL or result rows are inserted into prompts.
-
-The 30-case dataset, references and scoring remain unchanged. These cases have
-informed the instructions, so any improvement is a development-set result. The ten
-reserved final questions remain untouched. Candidate effectiveness is unmeasured
-until the next run; the change is prompt conditioning, not fine-tuning or learning.
-
-## Second development run: sqlite-v3
-
-Report: artifacts/agent_eval/20261025T002723353395Z.json. All 30 cases completed.
-Strict result correctness rose from 12/26 (46.2%) to 19/26 (73.1%), a gain of
-26.9 percentage points. Eight SQL cases improved and Q12 regressed. Final SQL
-execution succeeded for 25/26 (96.2%); Q24 asked unnecessary clarification after
-an execution error. Median latency was 1.22 seconds and p95 was 3.61 seconds.
-No provider/system errors were recorded. These are single development runs, not
-statistically established performance or isolated causal improvement.
-
-Clarification regressed: Q27 and Q29 executed assumed interpretations. Q28 and Q30
-requested clarification but their completeness has not been user-reviewed for this
-run. Do not carry the previous run's human ratings onto these new responses.
-
-The sqlite-v3 candidate is frozen for the final ten-question suite. No further
-prompt changes are made before that run. eval/holdout_cases.py fixes references
-and explicit output/aggregation contracts before model execution. These resolve
-ambiguous grains and labels in the original questions and are visible to the model.
-Holdout question topics were previously inspected for dataset preparation, but no
-model outputs from them have informed tuning. The suite tests new tasks on the same
-Olist schema; it does not establish cross-database generalization. A reference
-execution check establishes runnable SQL, not independent expert validation.
-
-## CSV application support
-
-CSV validation and conversion are covered by offline tests and use no model calls.
-The application selects generic schema instructions for standalone CSV tables. For
-the Olist table set, sqlite-v3's policy and generation checklist remain unchanged.
-No Olist evaluation accuracy is inferred from the CSV tests.
+The supported result is a working evaluation framework that exposed both development
+improvements and generalization failures. There is no measured customer adoption,
+production uptime, time saving, cost saving or business accuracy guarantee. Final
+results must remain visible alongside the better development score.

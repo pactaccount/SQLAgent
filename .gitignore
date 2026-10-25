@@ -1,39 +1,29 @@
-# Environments
+# Secrets and private notes
 .env
+.env.*
+!.env.template
+.local/
+
+# Environments and generated files
+.venv*/
 venv/
 env/
 ENV/
-env.bak/
-venv.bak/
-.venv-mlx/
 models/
 artifacts/
-
-# Python
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
-
-# Testing
 .pytest_cache/
 .coverage
 htmlcov/
-
-# Databases & local stores
-chinook.db
-*.sqlite
-*.sqlite3
-*.db
-
-# macOS
 .DS_Store
-
-# IDEs
 .vscode/
 .idea/
 
-# Backend environment and local secret variants
-.venv-backend/
-.env.*
-!.env.template
+# User data (the licensed sample is the only bundled database)
+*.db
+*.sqlite
+*.sqlite3
+!data/chinook.db
+
+.ruff_cache/

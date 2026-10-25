@@ -2,7 +2,7 @@
 
 from fastapi.testclient import TestClient
 
-import app as app_module
+import seaql.api as app_module
 
 
 def test_chat_reports_model_quota_as_retryable(monkeypatch):
@@ -12,7 +12,11 @@ def test_chat_reports_model_quota_as_retryable(monkeypatch):
     monkeypatch.setattr(app_module, "run_agent", exhausted)
     response = TestClient(app_module.app).post(
         "/chat",
-        json={"query": "How many artists?", "tenant_id": "test", "db_uri": "sqlite:///test.db"},
+        json={
+            "query": "How many artists?",
+            "tenant_id": "test",
+            "db_uri": "sqlite:///test.db",
+        },
     )
     assert response.status_code == 429
     assert response.headers["Retry-After"] == "60"

@@ -3,8 +3,8 @@ Starter questions derived from a database's real schema.
 
 A beginner staring at an empty chat box does not know what to ask. These
 questions are generated from the tables and columns that actually exist, so
-they are guaranteed to be answerable and they teach the user what the data
-contains.
+they provide plausible starting points and show what the data contains. Their
+generated answers still require the same execution and correctness checks.
 """
 
 import re
@@ -16,20 +16,67 @@ _CAMEL_BOUNDARY = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
 # substrings - "country" contains "count", and a naive substring match would
 # decide that a text column is a measure.
 _MEASURE_HINTS = (
-    "total", "amount", "price", "cost", "revenue", "profit", "quantity",
-    "qty", "count", "value", "balance", "salary", "hours", "duration",
-    "score", "rating", "weight", "length", "size", "sales", "spend",
+    "total",
+    "amount",
+    "price",
+    "cost",
+    "revenue",
+    "profit",
+    "quantity",
+    "qty",
+    "count",
+    "value",
+    "balance",
+    "salary",
+    "hours",
+    "duration",
+    "score",
+    "rating",
+    "weight",
+    "length",
+    "size",
+    "sales",
+    "spend",
 )
 
 _CATEGORY_HINTS = (
-    "name", "title", "category", "genre", "type", "status", "country",
-    "state", "city", "region", "department", "artist", "album", "customer",
-    "product", "label", "group", "kind", "class", "tier", "grade",
+    "name",
+    "title",
+    "category",
+    "genre",
+    "type",
+    "status",
+    "country",
+    "state",
+    "city",
+    "region",
+    "department",
+    "artist",
+    "album",
+    "customer",
+    "product",
+    "label",
+    "group",
+    "kind",
+    "class",
+    "tier",
+    "grade",
 )
 
 _TIME_HINTS = (
-    "date", "time", "year", "month", "created", "updated", "birth",
-    "hired", "released", "invoice", "order", "purchased", "timestamp",
+    "date",
+    "time",
+    "year",
+    "month",
+    "created",
+    "updated",
+    "birth",
+    "hired",
+    "released",
+    "invoice",
+    "order",
+    "purchased",
+    "timestamp",
 )
 
 _SEARCH_HINTS = ("email", "address", "phone", "description", "comment", "note")
@@ -87,11 +134,22 @@ def _is_numeric_type(type_string: str) -> bool:
     lowered = type_string.lower()
     return any(
         token in lowered
-        for token in ("int", "num", "decimal", "float", "double", "real", "money", "bigint")
+        for token in (
+            "int",
+            "num",
+            "decimal",
+            "float",
+            "double",
+            "real",
+            "money",
+            "bigint",
+        )
     )
 
 
-def _pick_column(columns: list, hints: tuple, types: dict, require_numeric: bool = False):
+def _pick_column(
+    columns: list, hints: tuple, types: dict, require_numeric: bool = False
+):
     """Return the first column whose name matches one of the hint words."""
     for column in columns:
         if require_numeric and not _is_numeric_type(types.get(column, "")):
@@ -138,7 +196,9 @@ def _build_question(table: str, columns: list, types: dict) -> Optional[str]:
 
     # A trend over time.
     if time_col and measure:
-        return f"How has the {_metric_phrase(measure)} changed over time in {table_label}?"
+        return (
+            f"How has the {_metric_phrase(measure)} changed over time in {table_label}?"
+        )
 
     # A count of the rows.
     if any(_is_id_column(c) for c in columns) or len(columns) == 1:
@@ -146,7 +206,9 @@ def _build_question(table: str, columns: list, types: dict) -> Optional[str]:
 
     # A listing of distinct values.
     if category:
-        return f"List the distinct {humanize(category).lower()} values in {table_label}."
+        return (
+            f"List the distinct {humanize(category).lower()} values in {table_label}."
+        )
 
     # A plain listing.
     if len(columns) == 1:
@@ -159,7 +221,7 @@ def generate_starter_questions(schema: dict, limit: int = 6) -> list:
     """
     Return a list of starter questions for a schema.
 
-    Input is the payload from tools.get_schema_json():
+    Input is the payload from seaql.database.get_schema_json():
         {"success": True, "tables": [{"name": ..., "columns": [{"name","type"}]}]}
 
     Each question is returned with the table it came from, so the UI can show
@@ -185,12 +247,14 @@ def generate_starter_questions(schema: dict, limit: int = 6) -> list:
             continue
         seen.add(key)
 
-        questions.append({
-            "question": question,
-            "table": table_name,
-            "table_label": humanize(table_name),
-            "columns": columns[:6],
-        })
+        questions.append(
+            {
+                "question": question,
+                "table": table_name,
+                "table_label": humanize(table_name),
+                "columns": columns[:6],
+            }
+        )
 
         if len(questions) >= limit:
             break
@@ -210,9 +274,11 @@ def generate_table_summaries(schema: dict) -> list:
     for table in schema.get("tables", []):
         table_name = table.get("name", "")
         columns = [c.get("name", "") for c in table.get("columns", []) if c.get("name")]
-        summaries.append({
-            "table": table_name,
-            "label": humanize(table_name),
-            "summary": f"{len(columns)} column(s): {', '.join(humanize(c) for c in columns[:8])}",
-        })
+        summaries.append(
+            {
+                "table": table_name,
+                "label": humanize(table_name),
+                "summary": f"{len(columns)} column(s): {', '.join(humanize(c) for c in columns[:8])}",
+            }
+        )
     return summaries

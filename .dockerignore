@@ -2,22 +2,21 @@
 .env
 .env.*
 !.env.template
-venv/
+.local/
 .venv*/
+venv/
 env/
-__pycache__/
-**/__pycache__/
-*.pyc
-.pytest_cache/
 models/
 artifacts/
-chroma_db/
+**/__pycache__/
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+.DS_Store
 *.db
 *.sqlite
 *.sqlite3
-.DS_Store
-usecase_results.json
-archive/
+!data/chinook.db
 
-# Small licensed sample database retained from the deployed interface.
-!chinook.db
+.ruff_cache/
