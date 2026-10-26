@@ -29,16 +29,29 @@ def value_type(value):
     return "TEXT"
 
 
-def rows(path):
+def detect_delimiter(path):
+    try:
+        with path.open("r", encoding="utf-8-sig", newline="") as stream:
+            sample = stream.read(8192)
+            if not sample:
+                return ","
+            dialect = csv.Sniffer().sniff(sample, delimiters=",;\t|")
+            return dialect.delimiter
+    except Exception:
+        return ","
+
+
+def rows(path, delimiter=","):
     with path.open("r", encoding="utf-8-sig", newline="") as stream:
-        reader = csv.reader(stream, strict=True)
+        reader = csv.reader(stream, delimiter=delimiter, strict=False)
         yield from reader
 
 
 def import_csv(source, destination, filename):
     source, destination = Path(source), Path(destination)
     try:
-        iterator = rows(source)
+        delimiter = detect_delimiter(source)
+        iterator = rows(source, delimiter=delimiter)
         headers = next(iterator, None)
         if not headers:
             raise ValueError(
@@ -100,19 +113,26 @@ def import_csv(source, destination, filename):
                 + ")"
             )
             batch = []
-            iterator = rows(source)
+            iterator = rows(source, delimiter=delimiter)
             next(iterator)
             for row in iterator:
                 if not row:
                     continue
                 values = []
                 for value, kind in zip(row, types):
-                    if not value.strip():
+                    val_str = value.strip() if isinstance(value, str) else ""
+                    if not val_str:
                         values.append(None)
                     elif kind == "INTEGER":
-                        values.append(int(value.strip()))
+                        try:
+                            values.append(int(val_str))
+                        except (ValueError, TypeError):
+                            values.append(value)
                     elif kind == "REAL":
-                        values.append(float(value.strip()))
+                        try:
+                            values.append(float(val_str))
+                        except (ValueError, TypeError):
+                            values.append(value)
                     else:
                         values.append(value)
                 batch.append(values)

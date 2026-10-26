@@ -259,10 +259,36 @@ export class ConnectionWizard {
             },
         });
 
+        const sampleBtn = el(
+            'button',
+            {
+                type: 'button',
+                class: 'btn btn--secondary',
+                id: 'btn-load-sample-db',
+                style: 'display: inline-flex; align-items: center; gap: 8px; width: 100%; justify-content: center; margin-top: 10px; padding: 10px; font-weight: 500;',
+                onclick: () => {
+                    pathInput.value = 'chinook.db';
+                    this.uploadedUri = 'chinook.db';
+                    this.uploadStatus.replaceChildren(
+                        el(
+                            'div',
+                            { style: 'padding: 8px 12px; border-radius: 6px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; font-size: 13px; display: flex; align-items: center; gap: 6px;' },
+                            icon('check', 16),
+                            el('span', { text: 'Loaded bundled sample: Chinook Music Store (11 tables, ready to explore)' })
+                        )
+                    );
+                    this._updateFooter();
+                },
+            },
+            icon('sparkle', 16),
+            el('span', { text: 'Load bundled sample database (Chinook Music Store)' })
+        );
+
         return el(
             'div',
             {},
             dropzone,
+            sampleBtn,
             this.uploadStatus,
             el(
                 'div',
@@ -271,7 +297,7 @@ export class ConnectionWizard {
                 pathInput,
                 el('span', {
                     class: 'field__hint',
-                    text: 'Use the full path on the machine running the server.',
+                    text: 'Use the full path on the machine running the server, or "chinook.db".',
                 }),
             ),
         );

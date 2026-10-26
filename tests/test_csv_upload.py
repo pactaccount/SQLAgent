@@ -107,3 +107,22 @@ def test_large_identifier_not_coerced_to_float(client):
     assert tools.execute_sql("SELECT * FROM sales", data["db_uri"])["result"] == [
         {"id": "9223372036854775808", "value": 100.0}
     ]
+
+
+def test_csv_semicolon_and_quoted_spaces(client):
+    content = b'name;price;qty\n"Apple" ;1.5;10\n"Orange";2.0;20\n'
+    result = upload(client, content, "fruits.csv")
+    assert result.status_code == 200
+    data = result.json()
+    assert data["table_name"] == "fruits"
+    assert data["row_count"] == 2
+    rows = tools.execute_sql("SELECT name, price, qty FROM fruits", data["db_uri"])["result"]
+    assert len(rows) == 2
+
+
+def test_sample_database_aliases():
+    for alias in ["chinook.db", "chinook", "sample.db", "sample", "data/chinook.db"]:
+        path = tools.database_path(f"sqlite:///{alias}")
+        assert path.is_file()
+        assert path.name == "chinook.db"
+

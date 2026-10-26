@@ -17,7 +17,11 @@ def database_path(db_uri):
     path = Path(url.database)
     if not path.is_absolute():
         path = ROOT / path
-    if not path.is_file() and url.database == "chinook.db":
+    db_clean = Path(url.database).name.lower()
+    if not path.is_file() and (
+        url.database.lower() in ("chinook.db", "chinook", "sample.db", "sample", "data/chinook.db")
+        or db_clean in ("chinook.db", "chinook", "sample.db", "sample")
+    ):
         path = ROOT / "data" / "chinook.db"
     path = path.resolve()
     if not path.is_file():
