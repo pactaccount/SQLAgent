@@ -117,6 +117,7 @@
     flex: 1;
     min-height: 0;
     overflow: hidden;
+    position: relative;
 }
 
 /* --- Activity rail -------------------------------------------------------- */
@@ -411,6 +412,7 @@
         left: var(--activitybar-w);
         top: 0;
         bottom: 0;
+        width: min(340px, calc(100vw - var(--activitybar-w)));
         z-index: 50;
         box-shadow: var(--shadow-lg);
     }
@@ -420,7 +422,54 @@
         right: 0;
         top: 0;
         bottom: 0;
+        width: min(380px, calc(100vw - var(--activitybar-w)));
         z-index: 50;
         box-shadow: var(--shadow-lg);
     }
+
+    .ws-split {
+        flex-direction: column;
+    }
 }
+
+@media (max-width: 540px) {
+    .topbar {
+        padding: 0 var(--sp-2);
+        gap: var(--sp-2);
+    }
+
+    .topbar__brand span:not(.topbar__mark) {
+        display: none;
+    }
+
+    .topbar__sep {
+        display: none;
+    }
+
+    .conn-chip {
+        max-width: 130px;
+        font-size: var(--text-xs);
+        padding: 0 var(--sp-2);
+    }
+
+    #conn-label {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    #connect-btn {
+        padding: var(--sp-1) var(--sp-2);
+        font-size: var(--text-xs);
+    }
+
+    .panel--left,
+    .panel--right {
+        width: calc(100vw - var(--activitybar-w));
+    }
+
+    .statusbar__item:nth-child(n+3) {
+        display: none;
+    }
+}
+

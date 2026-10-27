@@ -44,7 +44,9 @@ class Store {
             },
             theme: readStored(STORAGE_KEYS.theme, 'dark'),
             panels: {
-                left: readStored(STORAGE_KEYS.leftPanel, '1') !== '0',
+                left: (typeof window !== 'undefined' && window.innerWidth <= 860)
+                    ? false
+                    : readStored(STORAGE_KEYS.leftPanel, '1') !== '0',
                 right: readStored(STORAGE_KEYS.rightPanel, '1') !== '0',
             },
             schema: null,

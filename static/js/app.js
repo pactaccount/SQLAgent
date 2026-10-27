@@ -644,8 +644,18 @@ function boot() {
     });
 
     // --- Activity rail ---
-    dom.railExplorer.addEventListener('click', () => store.togglePanel('left'));
-    dom.railChat.addEventListener('click', () => store.togglePanel('right'));
+    dom.railExplorer.addEventListener('click', () => {
+        if (window.innerWidth <= 860 && !store.state.panels.left && store.state.panels.right) {
+            store.togglePanel('right');
+        }
+        store.togglePanel('left');
+    });
+    dom.railChat.addEventListener('click', () => {
+        if (window.innerWidth <= 860 && !store.state.panels.right && store.state.panels.left) {
+            store.togglePanel('left');
+        }
+        store.togglePanel('right');
+    });
 
     // --- Panel visibility ---
     const applyPanels = () => {
