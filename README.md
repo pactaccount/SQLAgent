@@ -107,6 +107,7 @@ learning or comprehensive hallucination-rate claim is made.
 
 ## Documentation
 
+- [IEEE Evaluation Report: Benchmarks, Metrics & Generalization](docs/IEEE_EVALUATION_REPORT.md)
 - [Technical report: purpose, components, workflow, design and deployment](docs/TECHNICAL_REPORT.md)
 - [Evaluation protocol, results and limitations](docs/EVALUATION.md)
 - [Datasets and licensing](docs/DATASETS.md)
